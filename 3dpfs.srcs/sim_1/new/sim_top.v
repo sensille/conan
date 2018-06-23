@@ -23,6 +23,7 @@ pfs #(
 
 	.rx(tx),
 	.tx(rx),
+	.cts(),
 
 	// stepper interface
 	.en(),

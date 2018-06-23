@@ -9,6 +9,7 @@ module pfs #(
 
 	input rx,
 	output tx,
+	output cts,
 
 	// stepper interface
 	output en,
@@ -84,7 +85,7 @@ uart #(
 reg [7:0] recv_ring [RECV_BUF_SIZE-1:0];
 reg [RECV_BUF_BITS-1:0] recv_wptr = 0;
 reg [RECV_BUF_BITS-1:0] recv_wptr_fallback = 0;
-reg [RECV_BUF_BITS-1:0] recv_rptr = 0;
+wire [RECV_BUF_BITS-1:0] recv_rptr;
 reg recv_in_escape = 0;
 reg [7:0] recv_seq = 0;
 
@@ -117,11 +118,15 @@ reg [7:0] recv_len_wr_data = 0;
 reg recv_len_wr_en = 0;
 
 wire [7:0] recv_fifo_dout;
-reg recv_fifo_rd_en = 0;
+wire recv_fifo_rd_en;
 wire recv_fifo_empty;
+wire recv_len_fifo_full;
+
+assign cts = (recv_rptr == recv_wptr + 1) || recv_len_fifo_full;
 
 fifo #(
-	.DATA_WIDTH(8)
+	.DATA_WIDTH(8),
+	.ADDR_WIDTH(7)
 ) recv_len_fifo (
 	.clk(clk),
 	.clr(1'b0),
@@ -129,7 +134,7 @@ fifo #(
 	// write side
 	.din(recv_len_wr_data),
 	.wr_en(recv_len_wr_en),
-	.full(),
+	.full(recv_len_fifo_full),
 
 	// read side
 	.dout(recv_fifo_dout),
@@ -294,34 +299,26 @@ always @(posedge clk) begin
 		tx_en <= 0;
 end
 
-/*
- * packet receive 2nd stage, after fifo
- * r2nd
- */
-reg [31:0] r2nd_cnt = 0;
-reg [31:0] r2nd_cnt_preload = 0;
-reg r2nd_in_read = 0;
-reg [7:0] r2nd_read_len = 0;
-always @(posedge clk) begin
-	recv_fifo_rd_en <= 0;
-	if (r2nd_cnt != 0) begin
-		r2nd_cnt <= r2nd_cnt - 1;
-	end else if (!recv_fifo_empty && r2nd_in_read == 0) begin
-		r2nd_cnt_preload <= 0;
-		r2nd_read_len <= recv_fifo_dout;
-		r2nd_in_read <= 1;
-	end else if (r2nd_read_len != 0) begin
-		r2nd_read_len <= r2nd_read_len - 1;
-		r2nd_cnt_preload <= { r2nd_cnt_preload[23:0], recv_ring[recv_rptr] };
-		recv_rptr <= recv_rptr + 1;
-	end else if (r2nd_in_read) begin
-		r2nd_in_read <= 0;
-		recv_fifo_rd_en <= 1;
-		r2nd_cnt <= r2nd_cnt_preload;
-	end else begin
-		recv_fifo_rd_en <= 0;
-	end
-end
+wire [31:0] motion_debug;
+wire [7:0] ring_data = recv_ring[recv_rptr];
+motion #(
+	.LEN_BITS(8),
+	.RECV_BUF_BITS(RECV_BUF_BITS)
+) u_motion (
+	.clk(clk),
+
+	/* len fifo input */
+	.len_fifo_empty(recv_fifo_empty),
+	.len_fifo_data(recv_fifo_dout),
+	.len_fifo_rd_en(recv_fifo_rd_en),
+
+	/* ring buffer input */
+	.recv_data(ring_data),
+	.recv_rptr(recv_rptr),
+
+	/* debug */
+	.debug(motion_debug)
+);
 
 /*
 wire abort = 0;
@@ -388,7 +385,7 @@ assign leds[40] = recv_in_escape;
 assign leds[42:41] = recv_error_state;
 assign leds[43] = recv_send_ack;
 assign leds[44] = recv_ack_sent;
-assign leds[127:96] = r2nd_cnt;
+assign leds[127:96] = motion_debug;
 
 led7219 led7219_u(
 	.clk(clk),
