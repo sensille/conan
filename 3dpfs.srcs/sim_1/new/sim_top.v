@@ -14,7 +14,9 @@ reg tx = 1;
 localparam BITRATE = 100000;
 localparam BITLENGTH = 1000000000 / BITRATE;
 
-pfs u_pfs(
+pfs #(
+	.BAUD(BITRATE)
+) u_pfs(
 	.clk_50mhz(clk_50mhz),
 
 	.led(),
@@ -83,6 +85,34 @@ initial begin: B_serial_data
 	send(8'hd9);
 	send(8'h75);
 	send(8'h0a);
+	send(8'h7e);
+	#(BITLENGTH * 10);
+	send(8'h80);
+	send(8'ha0);
+	send(8'h01);
+	send(8'h7e);
+	#(BITLENGTH * 10);
+	send(8'h01);
+	send(8'h55);
+	send(8'h02);
+	send(8'h51);
+	send(8'hef);
+	send(8'h7e);
+	#(BITLENGTH * 10);
+	send(8'h02);
+	send(8'haa);
+	send(8'h01);
+	send(8'ha0);
+	send(8'h1e);
+	send(8'h7e);
+	#(BITLENGTH * 10);
+	send(8'h7d);
+	send(8'h7d);
+	send(8'h7e);
+	#(BITLENGTH * 10);
+	send(8'h02);
+	send(8'hc0);
+	send(8'hc2);
 	send(8'h7e);
 end
 

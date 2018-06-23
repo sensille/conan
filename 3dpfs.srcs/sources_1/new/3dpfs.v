@@ -1,6 +1,8 @@
 `timescale 1ns / 1ps
 
-module pfs(
+module pfs #(
+	parameter BAUD = 9600
+) (
 	input clk_50mhz,
 
 	output led,
@@ -45,10 +47,10 @@ clk u_clk(
 	.clk(clk)		// 20 MHz
 );
 
-reg [21:0] led_cnt = 0;
+reg [31:0] led_cnt = 0;
 always @(posedge clk)
 	led_cnt = led_cnt + 1;
-assign led = led_cnt[21];
+assign led = led_cnt[22];
 
 reg rx_s1 = 0;
 reg rx_sync = 0;
@@ -62,7 +64,7 @@ reg [7:0] tx_data = 0;
 reg tx_en = 0;
 wire tx_is_transmitting;
 
-parameter CLOCK_DIVIDE = 50; // clock rate (20Mhz) / (baud rate (100000) * 4)
+localparam CLOCK_DIVIDE = 20000000 / BAUD / 4; // clock rate (20Mhz) / (baud rate (9600) * 4)
 uart #(
         .CLOCK_DIVIDE(CLOCK_DIVIDE)
 ) uart_u (
@@ -89,6 +91,13 @@ reg [7:0] recv_seq = 0;
 localparam RECV_ESC_CHAR = 8'h7d;
 localparam RECV_EOF_CHAR = 8'h7e;
 
+localparam RECV_ERROR_OK = 0;
+localparam RECV_ERROR_BAD_STATE = 1;
+localparam RECV_ERROR_BAD_CRC = 2;
+localparam RECV_ERROR_BAD_SEQ = 3;
+
+reg [1:0] recv_error_state = RECV_ERROR_OK;
+
 reg [7:0] recv_prev1 = 0;
 reg [7:0] recv_prev2 = 0;
 reg [7:0] crc16_in = 0;
@@ -99,15 +108,17 @@ reg recv_len_pre1 = 0;
 reg recv_len_pre2 = 0;
 reg recv_len_pre3 = 0;
 reg recv_error = 0;
-reg recv_error_bad_state = 0;
-reg recv_error_bad_crc = 0;
-reg recv_error_bad_seq = 0;
 reg recv_ack_sent = 0;
 reg recv_send_ack = 0;
-reg send_ack = 0;	/* signal for the send state machine */
-reg [7:0] recv_last_seq = 0;
+reg [6:0] recv_last_seq = 0;
+reg recv_eof = 0;
+reg [7:0] recv_len_wr_data = 0;
 
 reg recv_len_wr_en = 0;
+
+wire [7:0] recv_fifo_dout;
+reg recv_fifo_rd_en = 0;
+wire recv_fifo_empty;
 
 fifo #(
 	.DATA_WIDTH(8)
@@ -116,19 +127,22 @@ fifo #(
 	.clr(1'b0),
 
 	// write side
-	.din(recv_len),
+	.din(recv_len_wr_data),
 	.wr_en(recv_len_wr_en),
 	.full(),
 
 	// read side
-	.dout(),
-	.rd_en(),
-	.empty(),
+	.dout(recv_fifo_dout),
+	.rd_en(recv_fifo_rd_en),
+	.empty(recv_fifo_empty),
 
 	// status
 	.elemcnt()
 );
 
+reg send_ack = 0;	/* signal for the send state machine */
+reg [1:0] send_ack_error_state = 0;
+reg [7:0] send_ack_seq = 0;
 /*
  * packet receive state machine
  */
@@ -138,7 +152,7 @@ always @(posedge clk) begin
 		if (rx_data == RECV_ESC_CHAR) begin
 			if (recv_in_escape) begin
 				recv_error <= 1;
-				recv_error_bad_state <= 1;
+				recv_error_state <= RECV_ERROR_BAD_STATE;
 				recv_send_ack <= 1;
 			end else begin
 				recv_in_escape <= 1;
@@ -148,32 +162,28 @@ always @(posedge clk) begin
 				recv_wptr <= recv_wptr_fallback;
 			end else if (recv_in_escape) begin
 				recv_wptr <= recv_wptr_fallback;
-				recv_error_bad_state <= 1;
-				recv_send_ack <= 1;
+				recv_error_state <= RECV_ERROR_BAD_STATE;
 			end else if (crc16 != { recv_prev2, recv_prev1 }) begin
 				recv_wptr <= recv_wptr_fallback;
-				recv_error_bad_crc <= 1;
-				recv_send_ack <= 1;
-			end else if (recv_seq != recv_last_seq + 1) begin
+				recv_error_state <= RECV_ERROR_BAD_CRC;
+			end else if (recv_seq[7] == 0 &&
+			             recv_seq[6:0] != recv_last_seq + 1) begin
 				recv_wptr <= recv_wptr_fallback;
-				recv_error_bad_seq <= 1;
-				recv_send_ack <= 1;
+				recv_error_state <= RECV_ERROR_BAD_SEQ;
 			end else begin
 				recv_len_wr_en <= 1;
-				recv_send_ack <= 1;
+				recv_len_wr_data <= recv_len;
+				recv_wptr_fallback <= recv_wptr;
 			end
-			recv_error <= 0;
-			recv_error_bad_state <= 0;
-			recv_error_bad_crc <= 0;
-			recv_error_bad_seq <= 0;
 			recv_in_escape <= 0;
 			recv_len <= 0;
 			recv_len_pre1 <= 0;
 			recv_len_pre2 <= 0;
 			recv_len_pre3 <= 0;
 			crc16 <= 0;
-			recv_ack_sent <= 0;
-			recv_last_seq <= recv_seq;
+			recv_last_seq <= recv_seq[6:0];
+			recv_eof <= 1;
+			recv_send_ack <= 1;
 		end else if (recv_error) begin
 			/* do nothing, wait for EOF */
 		end else begin
@@ -208,19 +218,34 @@ always @(posedge clk) begin
 		crc16_cnt <= crc16_cnt - 1;
 		crc16_in <= { 1'b0, crc16_in[7:1] };
 	end
+
 	/*
 	 * debounce: send only one ack per received frame
 	 */
 	if (recv_send_ack && !recv_ack_sent) begin
 		recv_ack_sent <= 1;
-		recv_send_ack <= 0;
+		/* values passed to send state machine */
 		send_ack <= 1;
+		send_ack_error_state <= recv_error_state;
+		send_ack_seq <= recv_last_seq;
 	end
+
 	/*
 	 * hold send_ack for only 1T
 	 */
 	if (send_ack) begin
 		send_ack <= 0;
+	end
+
+	/*
+	 * reset error state on frame end
+	 */
+	if (recv_eof) begin
+		recv_eof <= 0;
+		recv_error <= 0;
+		recv_error_state <= RECV_ERROR_OK;
+		recv_ack_sent <= 0;
+		recv_send_ack <= 0;
 	end
 end
 
@@ -244,10 +269,8 @@ always @(posedge clk) begin
 			end
 			SEND_ACK_1: begin
 				tx_data <= {
-					5'h00,
-					recv_error_bad_state,
-					recv_error_bad_crc,
-					recv_error_bad_seq
+					6'h00,
+					send_ack_error_state
 				};
 				tx_en <= 1;
 				send_state <= SEND_ACK_1_WAIT;
@@ -257,7 +280,7 @@ always @(posedge clk) begin
 				send_state <= SEND_ACK_2;
 			end
 			SEND_ACK_2: begin
-				tx_data <= recv_last_seq;
+				tx_data <= send_ack_seq;
 				tx_en <= 1;
 				send_state <= SEND_ACK_2_WAIT;
 			end
@@ -271,11 +294,36 @@ always @(posedge clk) begin
 		tx_en <= 0;
 end
 
+/*
+ * packet receive 2nd stage, after fifo
+ * r2nd
+ */
+reg [31:0] r2nd_cnt = 0;
+reg [31:0] r2nd_cnt_preload = 0;
+reg r2nd_in_read = 0;
+reg [7:0] r2nd_read_len = 0;
+always @(posedge clk) begin
+	recv_fifo_rd_en <= 0;
+	if (r2nd_cnt != 0) begin
+		r2nd_cnt <= r2nd_cnt - 1;
+	end else if (!recv_fifo_empty && r2nd_in_read == 0) begin
+		r2nd_cnt_preload <= 0;
+		r2nd_read_len <= recv_fifo_dout;
+		r2nd_in_read <= 1;
+	end else if (r2nd_read_len != 0) begin
+		r2nd_read_len <= r2nd_read_len - 1;
+		r2nd_cnt_preload <= { r2nd_cnt_preload[23:0], recv_ring[recv_rptr] };
+		recv_rptr <= recv_rptr + 1;
+	end else if (r2nd_in_read) begin
+		r2nd_in_read <= 0;
+		recv_fifo_rd_en <= 1;
+		r2nd_cnt <= r2nd_cnt_preload;
+	end else begin
+		recv_fifo_rd_en <= 0;
+	end
+end
 
 /*
-assign tx_data = rx_data ^ 8'h23;
-assign tx_en = rx_ready;
-
 wire abort = 0;
 wire [NCNTRL:1] fifo_rd_en;
 wire fio_rd_en_combined = |fifo_rd_en;
@@ -328,7 +376,20 @@ generate for (k = 1; k < NCNTRL; k = k + 1) begin
 end
 */
 
-reg [255:0] leds = 256'h123456789abcdef023456789abcdef013456789abcdef012456789abcdef0123;
+wire [255:0] leds;
+assign leds[15:0] = crc16;
+assign leds[22:16] = recv_last_seq;
+assign leds[31:24] = recv_len;
+assign leds[39:32] = rx_data;
+assign leds[255:224] = led_cnt;
+assign leds[63:63-RECV_BUF_BITS+1] = recv_wptr;
+assign leds[95:95-RECV_BUF_BITS+1] = recv_rptr;
+assign leds[40] = recv_in_escape;
+assign leds[42:41] = recv_error_state;
+assign leds[43] = recv_send_ack;
+assign leds[44] = recv_ack_sent;
+assign leds[127:96] = r2nd_cnt;
+
 led7219 led7219_u(
 	.clk(clk),
 	.data(leds),
