@@ -11,7 +11,7 @@ wire leds_clk;
 wire rx;
 reg tx = 1;
 
-localparam BITRATE = 100000;
+localparam BITRATE = 400000;
 localparam BITLENGTH = 1000000000 / BITRATE;
 
 pfs #(
@@ -76,45 +76,65 @@ end
 initial begin: B_serial_data
 	tx = 1;
 	#1000;
-	send(8'h3a);
-	send(8'h5b);
-	send(8'h70);
-	send(8'h7d);
-	send(8'h5d);
-	send(8'h7d);
-	send(8'h5e);
-	send(8'hd9);
-	send(8'h75);
-	send(8'h0a);
-	send(8'h7e);
-	#(BITLENGTH * 10);
 	send(8'h80);
 	send(8'ha0);
 	send(8'h01);
 	send(8'h7e);
 	#(BITLENGTH * 10);
 	send(8'h01);
+	send(8'h80);	/* LOAD reg 0 */
 	send(8'h55);
-	send(8'h02);
-	send(8'h51);
-	send(8'hef);
-	send(8'h7e);
-	#(BITLENGTH * 10);
-	send(8'h02);
 	send(8'haa);
-	send(8'h01);
-	send(8'ha0);
-	send(8'h1e);
-	send(8'h7e);
-	#(BITLENGTH * 10);
-	send(8'h7d);
-	send(8'h7d);
+	send(8'h00);
+	send(8'hb0);
+	send(8'h7a);
 	send(8'h7e);
 	#(BITLENGTH * 10);
 	send(8'h02);
-	send(8'hc0);
+	send(8'h71);
+	send(8'h01);
+	send(8'h00);
+	send(8'h00);
+	send(8'h3c);
+	send(8'h33);
+	send(8'h7e);
+	#(BITLENGTH * 10);
+	send(8'h03);
+	send(8'h80);
+	send(8'haa);
+	send(8'h55);
+	send(8'h01);
+	send(8'h70);
+	send(8'hb3);
+	send(8'h7e);
+	#(BITLENGTH * 10);
+	send(8'h04);
+	send(8'h71);
+	send(8'h02);
+	send(8'h00);
+	send(8'h00);
+	send(8'h3c);
+	send(8'h4b);
+	send(8'h7e);
+	#(BITLENGTH * 10);
+	send(8'h05);
+	send(8'h80);	/* LOAD reg 0 */
+	send(8'h55);
+	send(8'haa);
+	send(8'h00);
+	send(8'h70);
+	send(8'h8b);
+	send(8'h7e);
+	#(BITLENGTH * 10);
+	send(8'h06);
+	send(8'h71);
+	send(8'h01);
+	send(8'h00);
+	send(8'h00);
+	send(8'hfc);
 	send(8'hc2);
 	send(8'h7e);
+	#(BITLENGTH * 10);
 end
 
 endmodule

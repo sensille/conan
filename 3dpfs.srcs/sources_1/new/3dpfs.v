@@ -176,7 +176,8 @@ always @(posedge clk) begin
 				recv_wptr <= recv_wptr_fallback;
 				recv_error_state <= RECV_ERROR_BAD_SEQ;
 			end else begin
-				recv_len_wr_en <= 1;
+				if (recv_len != 0)
+					recv_len_wr_en <= 1;
 				recv_len_wr_data <= recv_len;
 				recv_wptr_fallback <= recv_wptr;
 			end
