@@ -4,7 +4,8 @@ module motion #(
 	parameter LEN_BITS = 8,
 	parameter RECV_BUF_BITS = 10,
 	parameter REGBITS = 64,
-	parameter NCNTRL = 4
+	parameter NCNTRL = 4,
+	parameter NSTEPDIR = 6
 ) (
 	input clk,
 
@@ -18,12 +19,28 @@ module motion #(
 	output reg [RECV_BUF_BITS-1:0] recv_rptr = 0,
 
 	/* step/dir output */
-	output reg [NCNTRL-1:0] step = 0,
-	output [NCNTRL-1:0] dir,
+	output reg [NSTEPDIR-1:0] step,
+	output reg [NSTEPDIR-1:0] dir,
 
 	/* debug output */
 	output [31:0] debug
 );
+parameter NCNTRL_BITS = $clog2(NCNTRL + 1); /* +1 for the routing to NULL */
+parameter NSTEPDIR_BITS = $clog2(NSTEPDIR);
+/* step/dir from controllers */
+reg [NCNTRL:0] c_step = 0;
+wire [NCNTRL:0] c_dir;
+assign c_dir[0] = 0;
+
+/* routing information */
+reg [NCNTRL_BITS-1:0] stepdir_routing[NSTEPDIR-1:0];
+/* initialize array to 0, mainly for simulation */
+initial begin: init_routing
+	integer i;
+	for (i = 0; i < NSTEPDIR - 1; i = i + 1) begin
+		stepdir_routing[i] = 0;
+	end
+end
 
 /*
  * Preload registers for motion stage
@@ -63,6 +80,7 @@ localparam P_STATE_BUILD_VAL = 1;
 /*
  * command definitions
  */
+localparam M_CMD_SET_ROUTING= 8'h60;
 localparam M_CMD_LOADALLREG = 8'h70;
 localparam M_CMD_LOADCNT    = 8'h71;
 localparam M_CMD_LOADREG    = 8'h80;	/* 0x80-0x8f */
@@ -77,7 +95,10 @@ reg mp_in_cmd = 0;		/* currently parsing cmd */
 reg mp_cmd_end = 0;		/* end of command delay clk */
 reg mp_extend_sign = 0;		/* set when first byte is received */
 reg i_want_an_empty_block;	/* keep compiler happy */
-always @(posedge clk) begin
+reg [NCNTRL-1:0] do_step;
+always @(posedge clk) begin: main_block
+	integer i;
+
 	len_fifo_rd_en <= 0;
 	if (m_state == M_STATE_ERROR) begin
 		/*
@@ -113,8 +134,7 @@ always @(posedge clk) begin
 			m_preload_reg[mp_cmd[3:0]] = mp_creg;
 			mp_cmd_end <= 1;
 			len_fifo_rd_en <= 1;
-		end else if (mp_cmd == M_CMD_LOADALLREG) begin: loadall
-			integer i;
+		end else if (mp_cmd == M_CMD_LOADALLREG) begin
 			for (i = 0; i < NCNTRL; i = i + 1) begin
 				m_preload_reg[i] <= mp_creg;
 			end
@@ -133,8 +153,7 @@ always @(posedge clk) begin
 				 */
 				/* XXX TODO */
 				i_want_an_empty_block <= 0;
-			end else if (m_state != M_STATE_ERROR) begin: loadcnt
-				integer i;
+			end else if (m_state != M_STATE_ERROR) begin
 				/*
 				 * load staged registers + cnt
 				 */
@@ -146,6 +165,9 @@ always @(posedge clk) begin
 				len_fifo_rd_en <= 1;
 				m_state <= M_STATE_RUN;
 			end
+		end else if (mp_cmd == M_CMD_SET_ROUTING) begin
+			stepdir_routing[mp_creg[NSTEPDIR_BITS+8:NSTEPDIR_BITS]]=
+				mp_creg[NCNTRL_BITS];
 		end else begin
 			/*
 			 * unknwon command
@@ -161,24 +183,15 @@ always @(posedge clk) begin
 		mp_cmd_end <= 0;
 		mp_in_cmd <= 0;
 	end
-end
+	if (m_cnt != 0)
+		m_cnt <= m_cnt - 1;
 
-/*
- * motion controller
- */
-reg [NCNTRL-1:0] do_step;
-genvar gi;
-generate
-	for (gi = 0; gi < NCNTRL; gi = gi + 1) begin
-		assign dir[gi] = m_velocity[gi][REGBITS-1];
-	end
-endgenerate 
-always @(posedge clk) begin: motion_block
-	integer i;
-
+	/*
+	 * motion control
+	 */
 	for (i = 0; i < NCNTRL; i = i + 1) begin
 		if (do_step[i]) begin
-			step[i] <= ~step[i];
+			c_step[i + 1] <= ~c_step[i + 1];
 		end
 		do_step[i] <= 0;
 	end
@@ -191,10 +204,28 @@ always @(posedge clk) begin: motion_block
 				{ m_pos[i][REGBITS-1], m_pos[i] } +
 			        { m_velocity[i][REGBITS-1], m_velocity[i] };
 		end
-		m_cnt <= m_cnt - 1;
 	end
 end
 
+genvar gi;
+generate
+	for (gi = 0; gi < NCNTRL; gi = gi + 1) begin
+		assign c_dir[gi + 1] = m_velocity[gi][REGBITS-1];
+	end
+endgenerate 
+
+generate
+for (gi = 0; gi < NSTEPDIR; gi = gi + 1) begin
+	always @(*) begin
+		step[gi] = c_step[stepdir_routing[gi]];
+		dir[gi] = c_dir[stepdir_routing[gi]];
+	end
+end
+endgenerate
+
+/*
+ * motion controller
+ */
 assign debug = { m_state, mp_cmd, mp_in_cmd };
 
 endmodule
