@@ -13,6 +13,9 @@ module framing #(
 	output tx,
 	output cts,
 
+	/*
+	 * receive side
+	 */
 	/* len fifo output */
 	output recv_fifo_empty,
 	output [LEN_BITS-1:0] recv_fifo_dout,
@@ -20,7 +23,19 @@ module framing #(
 
 	/* ring buffer output */
 	output [7:0] ring_data,
-	input [RING_BITS-1:0] recv_rptr
+	input [RING_BITS-1:0] recv_rptr,
+
+	/*
+	 * send side
+	 */
+	input send_fifo_wr_en,
+	input [LEN_BITS-1:0] send_fifo_data,
+	output send_fifo_full,
+
+	/* ring buffer input */
+	input [7:0] send_ring_data,
+	input send_ring_wr_en,
+	output send_ring_full
 );
 
 localparam RING_SIZE = 1 << RING_BITS;
@@ -42,7 +57,7 @@ wire [7:0] rx_data;
 wire rx_ready;
 reg [7:0] tx_data = 0;
 reg tx_en = 0;
-wire tx_is_transmitting;
+wire tx_transmitting;
 
 localparam CLOCK_DIVIDE = HZ / BAUD / 4; /* 4 phases per bit */
 uart #(
@@ -57,7 +72,7 @@ uart #(
 	.received(rx_ready),
 	.rx_byte(rx_data),
 	.is_receiving(),
-	.is_transmitting(tx_is_transmitting),
+	.is_transmitting(tx_transmitting),
 	.recv_error()
 );
 
@@ -231,49 +246,136 @@ always @(posedge clk) begin
 	end
 end
 
-localparam SEND_IDLE = 0;
-localparam SEND_ACK_1 = 1;
-localparam SEND_ACK_1_WAIT = 2;
-localparam SEND_ACK_2 = 3;
-localparam SEND_ACK_2_WAIT = 4;
-reg [2:0] send_state = SEND_IDLE;
 /*
- * packet send state machine
+ * send side
  */
+wire [LEN_BITS-1:0] send_fifo_rd_data;
+reg send_fifo_rd_en = 0;
+wire send_fifo_empty;
+fifo #(
+	.DATA_WIDTH(LEN_BITS),
+	.ADDR_WIDTH(LEN_FIFO_BITS)
+) send_len_fifo (
+	.clk(clk),
+	.clr(1'b0),
+
+	// write side
+	.din(send_fifo_data),
+	.wr_en(send_fifo_wr_en),
+	.full(send_fifo_full),
+
+	// read side
+	.dout(send_fifo_rd_data),
+	.rd_en(send_fifo_rd_en),
+	.empty(send_fifo_empty),
+
+	// status
+	.elemcnt()
+);
+
+/*
+ * sending data from the fifo takes precedence, as each data packet also
+ * carries an ack seq number.
+ */
+localparam SEND_IDLE = 0;
+localparam SEND_DATA = 1;
+localparam SEND_CRC1 = 2;
+localparam SEND_CRC2 = 3;
+localparam SEND_EOF = 4;
+reg [2:0] send_state = 0;
+reg do_send = 0;
+reg send_ack_requested = 0;
+reg send_in_escape = 0;
+reg [3:0] send_crc16_cnt = 0;
+reg [7:0] send_crc16_in = 0;
+reg [15:0] send_crc16 = 0;
+reg [7:0] send_byte = 0;
+reg [7:0] send_ring [RING_SIZE-1:0];
+reg [RING_BITS-1:0] send_rptr = 0;
+reg [RING_BITS-1:0] send_wptr = 0;
+reg [LEN_BITS-1:0] send_len = 0;
+assign send_ring_full = (send_wptr + 1) == send_rptr;
+
 always @(posedge clk) begin
-	if (send_ack) begin
-		send_state <= SEND_ACK_1;
+	if (send_ring_wr_en && !send_ring_full) begin
+		send_ring[send_wptr] <= send_ring_data;
+		send_wptr <= send_wptr + 1;
 	end
-	if (!tx_is_transmitting) begin
-		case (send_state)
-			SEND_IDLE: begin
-				tx_data <= 0;
-			end
-			SEND_ACK_1: begin
-				tx_data <= {
-					6'h00,
-					send_ack_error_state
-				};
-				tx_en <= 1;
-				send_state <= SEND_ACK_1_WAIT;
-			end
-			SEND_ACK_1_WAIT: begin
-				/* wait 1T for transmitting to go high */
-				send_state <= SEND_ACK_2;
-			end
-			SEND_ACK_2: begin
-				tx_data <= send_ack_seq;
-				tx_en <= 1;
-				send_state <= SEND_ACK_2_WAIT;
-			end
-			SEND_ACK_2_WAIT: begin
-				/* wait 1T for transmitting to go high */
-				send_state <= SEND_IDLE;
-			end
-		endcase
-	end
+end
+
+always @(posedge clk) begin
+	if (send_ack)
+		send_ack_requested <= 1;
+	if (send_fifo_rd_en)
+		send_fifo_rd_en <= 0;
 	if (tx_en)
 		tx_en <= 0;
+	if (send_crc16_cnt != 0) begin
+		send_crc16 <= { 1'b0, send_crc16[15:1] };
+		send_crc16[15] <= send_crc16_in[0] ^ send_crc16[0];
+		send_crc16[13] <= send_crc16[14] ^ send_crc16_in[0] ^
+			send_crc16[0];
+		send_crc16[0] <= send_crc16[1] ^ send_crc16_in[0] ^
+			send_crc16[0];
+		send_crc16_cnt <= send_crc16_cnt - 1;
+		send_crc16_in <= { 1'b0, send_crc16_in[7:1] };
+	end
+	if (do_send && !tx_transmitting) begin
+		if (send_in_escape) begin
+			tx_data <= send_byte ^ 8'h20;
+			do_send <= 0;
+			send_in_escape <= 0;
+		end else begin
+			if (send_byte == RECV_ESC_CHAR ||
+			    send_byte == RECV_EOF_CHAR) begin
+				tx_data <= RECV_ESC_CHAR;
+				send_in_escape <= 1;
+			end else begin
+				tx_data <= send_byte;
+				do_send <= 0;
+			end
+		end
+		tx_en <= 1;
+	end else if (tx_transmitting || tx_en) begin
+		/* do nothing, wait for send to complete */
+	end else if (send_state == SEND_IDLE &&
+	    (send_ack_requested || !send_fifo_empty)) begin
+		if (send_fifo_empty)
+			send_len <= 0;
+		else
+			send_len <= send_fifo_data;
+		send_ack_requested <= 0;
+		send_state <= SEND_DATA;
+		send_crc16 <= 0;
+		send_byte <= send_ack_seq;
+		send_crc16_in <= send_ack_seq;
+		send_crc16_cnt <= 8;
+		do_send <= 1;
+		send_fifo_rd_en <= 1;
+	end else if (send_state == SEND_DATA) begin
+		if (send_len != 0) begin
+			send_byte <= send_ring[send_rptr];
+			send_crc16_in <= send_ring[send_rptr];
+			send_rptr <= send_rptr + 1;
+			send_len <= send_len - 1;
+			do_send <= 1;
+			send_crc16_cnt <= 8;
+		end else begin
+			send_state <= SEND_CRC1;
+		end
+	end else if (send_state == SEND_CRC1) begin
+		send_byte <= send_crc16[15:8];
+		do_send <= 1;
+		send_state <= SEND_CRC2;
+	end else if (send_state == SEND_CRC2) begin
+		send_byte <= send_crc16[7:0];
+		do_send <= 1;
+		send_state <= SEND_EOF;
+	end else if (send_state == SEND_EOF) begin
+		tx_data <= RECV_EOF_CHAR;
+		tx_en <= 1;
+		send_state <= SEND_IDLE;
+	end
 end
 
 endmodule

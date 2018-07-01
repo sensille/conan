@@ -38,12 +38,15 @@ module pfs #(
 	output leds_cs
 );
 
+localparam LEN_BITS = 8;
 localparam RECV_BUF_BITS = 10;
 localparam RECV_BUF_SIZE = (1 << 10);
 localparam HZ = 20000000;
 
 assign debug1 = rx1;
 assign debug2 = tx1;
+assign debug3 = rx2;
+assign debug4 = tx2;
 
 wire clk;
 clk u_clk(
@@ -67,7 +70,7 @@ wire [9:0] recv_rptr_1;
 framing #(
 	.BAUD(BAUD),
 	.RING_BITS(10),
-	.LEN_BITS(8),
+	.LEN_BITS(LEN_BITS),
 	.LEN_FIFO_BITS(7),
 	.HZ(HZ)
 ) u_framing_1 (
@@ -89,7 +92,7 @@ framing #(
 
 wire [31:0] motion_debug;
 motion #(
-	.LEN_BITS(8),
+	.LEN_BITS(LEN_BITS),
 	.RECV_BUF_BITS(RECV_BUF_BITS)
 ) u_motion (
 	.clk(clk),
@@ -103,7 +106,8 @@ motion #(
 	.recv_data(ring_data_1),
 	.recv_rptr(recv_rptr_1),
 
-	/* XXX TODO step/dir */
+	.dir(dir),
+	.step(step),
 
 	/* debug */
 	.debug(motion_debug)
@@ -117,10 +121,17 @@ wire [7:0] len_fifo_data_2;
 wire len_fifo_rd_en_2;
 wire [7:0] ring_data_2;
 wire [9:0] recv_rptr_2;
+
+wire send_fifo_full_2;
+wire send_fifo_wr_en_2;
+wire [LEN_BITS-1:0] send_fifo_data_2;
+wire send_ring_full_2;
+wire send_ring_wr_en_2;
+wire [7:0] send_ring_data_2;
 framing #(
 	.BAUD(BAUD),
 	.RING_BITS(10),
-	.LEN_BITS(8),
+	.LEN_BITS(LEN_BITS),
 	.LEN_FIFO_BITS(7),
 	.HZ(HZ)
 ) u_framing_2 (
@@ -137,12 +148,22 @@ framing #(
 
 	/* ring buffer output */
 	.ring_data(ring_data_2),
-	.recv_rptr(recv_rptr_2)
+	.recv_rptr(recv_rptr_2),
+
+	/* send len fifo */
+	.send_fifo_wr_en(send_fifo_wr_en_2),
+	.send_fifo_data(send_fifo_data_2),
+	.send_fifo_full(send_fifo_full_2),
+
+	/* send ring */
+	.send_ring_data(send_ring_data_2),
+	.send_ring_wr_en(send_ring_wr_en_2),
+	.send_ring_full(send_ring_full_2)
 );
 
 wire [31:0] control_debug;
 control #(
-	.LEN_BITS(8),
+	.LEN_BITS(LEN_BITS),
 	.RECV_BUF_BITS(RECV_BUF_BITS),
 	.NGPOUT(1),
 	.NGPIN(0)
@@ -157,6 +178,16 @@ control #(
 	/* ring buffer input */
 	.recv_data(ring_data_2),
 	.recv_rptr(recv_rptr_2),
+
+	/* send len fifo */
+	.send_fifo_wr_en(send_fifo_wr_en_2),
+	.send_fifo_data(send_fifo_data_2),
+	.send_fifo_full(send_fifo_full_2),
+
+	/* send ring */
+	.send_ring_data(send_ring_data_2),
+	.send_ring_wr_en(send_ring_wr_en_2),
+	.send_ring_full(send_ring_full_2),
 
 	.gpout({ en }),
 	.gpin(),
@@ -175,7 +206,6 @@ assign leds[15:0] = crc16;
 assign leds[22:16] = recv_last_seq;
 assign leds[31:24] = recv_len;
 assign leds[39:32] = rx_data;
-assign leds[255:224] = led_cnt;
 assign leds[63:63-RECV_BUF_BITS+1] = recv_wptr;
 assign leds[95:95-RECV_BUF_BITS+1] = recv_rptr;
 assign leds[40] = recv_in_escape;
@@ -184,6 +214,7 @@ assign leds[43] = recv_send_ack;
 assign leds[44] = recv_ack_sent;
 */
 assign leds[127:96] = motion_debug;
+assign leds[255:224] = led_cnt;
 
 led7219 led7219_u(
 	.clk(clk),

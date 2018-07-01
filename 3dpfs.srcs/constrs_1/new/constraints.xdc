@@ -6,9 +6,9 @@ set_property -dict {PACKAGE_PIN B7 IOSTANDARD LVCMOS33} [get_ports rx1]
 set_property -dict {PACKAGE_PIN B6 IOSTANDARD LVCMOS33} [get_ports tx1]
 set_property -dict {PACKAGE_PIN A7 IOSTANDARD LVCMOS33} [get_ports cts1]
 
-set_property -dict {PACKAGE_PIN E6 IOSTANDARD LVCMOS33} [get_ports rx2]
-set_property -dict {PACKAGE_PIN J5 IOSTANDARD LVCMOS33} [get_ports tx2]
-set_property -dict {PACKAGE_PIN K5 IOSTANDARD LVCMOS33} [get_ports cts2]
+set_property -dict {PACKAGE_PIN J5 IOSTANDARD LVCMOS33} [get_ports rx2]
+set_property -dict {PACKAGE_PIN G5 IOSTANDARD LVCMOS33} [get_ports tx2]
+set_property -dict {PACKAGE_PIN J4 IOSTANDARD LVCMOS33} [get_ports cts2]
 
 set_property -dict {PACKAGE_PIN N13 IOSTANDARD LVCMOS33} [get_ports {en} ]
 set_property -dict {PACKAGE_PIN N16 IOSTANDARD LVCMOS33} [get_ports {sck} ]
@@ -28,8 +28,8 @@ set_property -dict {PACKAGE_PIN T14 IOSTANDARD LVCMOS33} [get_ports {dir[4]} ]
 set_property -dict {PACKAGE_PIN P13 IOSTANDARD LVCMOS33} [get_ports {step[4]} ]
 set_property -dict {PACKAGE_PIN T13 IOSTANDARD LVCMOS33} [get_ports {dir[5]} ]
 set_property -dict {PACKAGE_PIN T12 IOSTANDARD LVCMOS33} [get_ports {step[5]} ]
-set_property -dict {PACKAGE_PIN L13 IOSTANDARD LVCMOS33} [get_ports {unassigned1} ]
-set_property -dict {PACKAGE_PIN K12 IOSTANDARD LVCMOS33} [get_ports {unassigned2} ]
+#set_property -dict {PACKAGE_PIN L13 IOSTANDARD LVCMOS33} [get_ports {unassigned1} ]
+#set_property -dict {PACKAGE_PIN K12 IOSTANDARD LVCMOS33} [get_ports {unassigned2} ]
 
 set_property -dict {PACKAGE_PIN J3 IOSTANDARD LVCMOS33} [get_ports debug1]
 set_property -dict {PACKAGE_PIN K3 IOSTANDARD LVCMOS33} [get_ports debug2]
@@ -44,8 +44,6 @@ create_clock -period 20.000 [get_ports clk_50mhz]
 
 set_property CFGBVS VCCO [current_design]
 set_property CONFIG_VOLTAGE 3.3 [current_design]
-
-set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets sck_IBUF]
 
 set_property BITSTREAM.GENERAL.COMPRESS TRUE [current_design]
 set_property BITSTREAM.CONFIG.CONFIGRATE 3 [current_design]

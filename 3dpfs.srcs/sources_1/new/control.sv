@@ -17,11 +17,21 @@ module control #(
 	/* len fifo input */
 	input len_fifo_empty,
 	input [LEN_BITS-1:0] len_fifo_data,
-	output reg len_fifo_rd_en,
+	output reg len_fifo_rd_en = 0,
 
 	/* ring buffer input */
 	input [7:0] recv_data,	/* data at rptr */
 	output reg [RECV_BUF_BITS-1:0] recv_rptr = 0,
+
+	/* send len fifo */
+	output reg send_fifo_wr_en = 0,
+	output reg [LEN_BITS-1:0] send_fifo_data = 0,
+	input send_fifo_full,
+
+	/* send ring */
+	output reg [7:0] send_ring_data = 0,
+	output reg send_ring_wr_en = 0,
+	input send_ring_full,
 
 	/* stepper board control */
 	output reg sck = 0,
@@ -35,10 +45,10 @@ module control #(
 	output [31:0] debug
 );
 
-parameter SPI_DIVIDER_BITS = $clog2(SPI_DIVIDER);
-parameter SPICNT_WIDTH = $clog2(SPIBITS);
-parameter NGPOUT_BITS = $clog2(NGPOUT);
-parameter NGPIN_BITS = $clog2(NGPIN);
+localparam SPI_DIVIDER_BITS = $clog2(SPI_DIVIDER);
+localparam SPICNT_WIDTH = $clog2(SPIBITS);
+localparam NGPOUT_BITS = $clog2(NGPOUT);
+localparam NGPIN_BITS = $clog2(NGPIN);
 
 localparam C_CMD_SPI = 8'h80;	/* 0x80-0x8f, lower 4 bit for cs */
 localparam C_CMD_GPOUT_HI = 8'h70;
@@ -86,7 +96,6 @@ always @(posedge clk) begin: main_block
 			/* spi finished */
 			c_cmd_end <= 1;
 			len_fifo_rd_en <= 1;
-			/* TODO: send result */
 		end else if (c_cmd[7:4] == C_CMD_SPI[7:4]) begin
 			c_spi_start <= 1;
 		end else if (c_cmd == C_CMD_GPOUT_HI) begin
@@ -119,9 +128,10 @@ reg [SPI_DIVIDER_BITS-1:0] s_spi_divider = 0;
 reg [SPIBITS-1:0] s_spi_data_out = 0;
 reg [SPIBITS-1:0] s_spi_data_in = 0;
 reg [SPICNT_WIDTH-1:0] s_spi_cnt = 0;
-reg [1:0] s_spi_phase = 0;
+reg [2:0] s_spi_phase = 0;
 reg sdo_sync1 = 0;
 reg sdo_sync = 0;
+reg [SPICNT_WIDTH-4:0] s_spi_send_result_cnt = 0;
 always @(posedge clk) begin
 	sdo_sync1 <= sdo;
 	sdo_sync <= sdo_sync1;
@@ -135,7 +145,6 @@ always @(posedge clk) begin
 		s_spi_phase <= 0;
 		s_spi_divider <= SPI_DIVIDER;
 		s_spi_data_out <= c_creg[SPIBITS-1:0];
-		s_spi_data_in <= 0;
 	end else if (s_spi_divider != 0) begin
 		s_spi_divider <= s_spi_divider - 1;
 	end else if (s_spi_running && s_spi_phase == 0) begin
@@ -162,9 +171,22 @@ always @(posedge clk) begin
 			s_spi_phase <= 1;
 	end else if (s_spi_running && s_spi_phase == 3) begin
 		cs[1 << c_cmd[3:0]] <= 1;
+		s_spi_send_result_cnt <= SPIBITS / 8;
+		s_spi_phase <= 4;
+	end else if (s_spi_send_result_cnt && !send_ring_full &&
+	    !send_fifo_full) begin
+		send_ring_wr_en <= 1;
+		send_ring_data <= s_spi_data_in[SPIBITS-1:SPIBITS-8];
+		s_spi_data_in <= { s_spi_data_in[SPIBITS-9:SPIBITS-16], 8'h00 };
+		s_spi_send_result_cnt <= s_spi_send_result_cnt - 1;
+	end else if (send_ring_wr_en) begin
+		send_ring_wr_en <= 0;
+		send_fifo_data <= SPIBITS / 8;
+		send_fifo_wr_en <= 1;
 		s_spi_done <= 1;
 		s_spi_running <= 0;
 	end else if (s_spi_done) begin
+		send_fifo_wr_en <= 0;
 		s_spi_done <= 0;
 	end 
 end
