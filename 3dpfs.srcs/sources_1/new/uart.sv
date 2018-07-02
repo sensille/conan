@@ -1,4 +1,6 @@
 `timescale 1ns / 1ps
+`default_nettype none
+
 // Documented Verilog UART
 // Copyright (C) 2010 Timothy Goddard (tim@goddard.net.nz)
 // Distributed under the MIT licence.
@@ -25,34 +27,34 @@
 module uart#(
 	parameter CLOCK_DIVIDE = 1302 // clock rate (50Mhz) / (baud rate (9600) * 4)
 ) (
-	input clk, // The master clock for this module
-	input rst, // Synchronous reset.
-	input rx, // Incoming serial line
-	output tx, // Outgoing serial line
-	input transmit, // Signal to transmit
-	input [7:0] tx_byte, // Byte to transmit
-	output received, // Indicated that a byte has been received.
-	output [7:0] rx_byte, // Byte received
-	output is_receiving, // Low when receive line is idle.
-	output is_transmitting, // Low when transmit line is idle.
-	output recv_error // Indicates error in receiving packet.
+	input wire clk, // The master clock for this module
+	input wire rst, // Synchronous reset.
+	input wire rx, // Incoming serial line
+	output wire tx, // Outgoing serial line
+	input wire transmit, // Signal to transmit
+	input wire [7:0] tx_byte, // Byte to transmit
+	output wire received, // Indicated that a byte has been received.
+	output wire [7:0] rx_byte, // Byte received
+	output wire is_receiving, // Low when receive line is idle.
+	output wire is_transmitting, // Low when transmit line is idle.
+	output wire recv_error // Indicates error in receiving packet.
 );
  
 // States for the receiving state machine.
 // These are just constants, not parameters to override.
-parameter RX_IDLE = 0;
-parameter RX_CHECK_START = 1;
-parameter RX_READ_BITS = 2;
-parameter RX_CHECK_STOP = 3;
-parameter RX_DELAY_RESTART = 4;
-parameter RX_ERROR = 5;
-parameter RX_RECEIVED = 6;
+localparam RX_IDLE = 0;
+localparam RX_CHECK_START = 1;
+localparam RX_READ_BITS = 2;
+localparam RX_CHECK_STOP = 3;
+localparam RX_DELAY_RESTART = 4;
+localparam RX_ERROR = 5;
+localparam RX_RECEIVED = 6;
  
 // States for the transmitting state machine.
 // Constants - do not override.
-parameter TX_IDLE = 0;
-parameter TX_SENDING = 1;
-parameter TX_DELAY_RESTART = 2;
+localparam TX_IDLE = 0;
+localparam TX_SENDING = 1;
+localparam TX_DELAY_RESTART = 2;
  
 reg [10:0] rx_clk_divider = CLOCK_DIVIDE;
 reg [10:0] tx_clk_divider = CLOCK_DIVIDE;

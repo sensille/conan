@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`default_nettype none
 
 module sim_top();
 
@@ -18,7 +19,8 @@ reg sdo;
 wire sdi;
 wire sck;
 
-localparam BITRATE = 400000;
+//localparam BITRATE = 400000;
+localparam BITRATE = 9600;
 localparam BITLENGTH = 1000000000 / BITRATE;
 
 pfs #(

@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`default_nettype none
 
 module framing #(
 	parameter BAUD = 9600,
@@ -7,35 +8,35 @@ module framing #(
 	parameter LEN_FIFO_BITS = 7,
 	parameter HZ = 20000000
 ) (
-	input clk,
+	input wire clk,
 
-	input rx,
-	output tx,
-	output cts,
+	input wire rx,
+	output wire tx,
+	output wire cts,
 
 	/*
 	 * receive side
 	 */
 	/* len fifo output */
-	output recv_fifo_empty,
-	output [LEN_BITS-1:0] recv_fifo_dout,
-	output recv_fifo_rd_en,
+	output wire recv_fifo_empty,
+	output wire [LEN_BITS-1:0] recv_fifo_dout,
+	input wire recv_fifo_rd_en,
 
 	/* ring buffer output */
-	output [7:0] ring_data,
-	input [RING_BITS-1:0] recv_rptr,
+	output wire [7:0] ring_data,
+	input wire [RING_BITS-1:0] recv_rptr,
 
 	/*
 	 * send side
 	 */
-	input send_fifo_wr_en,
-	input [LEN_BITS-1:0] send_fifo_data,
-	output send_fifo_full,
+	input wire send_fifo_wr_en,
+	input wire [LEN_BITS-1:0] send_fifo_data,
+	output wire send_fifo_full,
 
 	/* ring buffer input */
-	input [7:0] send_ring_data,
-	input send_ring_wr_en,
-	output send_ring_full
+	input wire [7:0] send_ring_data,
+	input wire send_ring_wr_en,
+	output wire send_ring_full
 );
 
 localparam RING_SIZE = 1 << RING_BITS;
@@ -46,8 +47,8 @@ localparam RING_SIZE = 1 << RING_BITS;
 reg rx_s1 = 0;
 reg rx_sync = 0;
 always @(posedge clk) begin
-	rx_s1 = rx;
-	rx_sync = rx_s1;
+	rx_s1 <= rx;
+	rx_sync <= rx_s1;
 end
 
 /*
@@ -138,7 +139,7 @@ fifo #(
 
 reg send_ack = 0;	/* signal for the send state machine */
 reg [1:0] send_ack_error_state = 0;
-reg [7:0] send_ack_seq = 0;
+reg [6:0] send_ack_seq = 0;
 /*
  * packet receive state machine
  */
@@ -347,8 +348,10 @@ always @(posedge clk) begin
 		send_ack_requested <= 0;
 		send_state <= SEND_DATA;
 		send_crc16 <= 0;
-		send_byte <= send_ack_seq;
-		send_crc16_in <= send_ack_seq;
+		send_byte <= { (send_ack_error_state != 0) ? 1'b1 : 1'b0,
+		               send_ack_seq[6:0] };
+		send_crc16_in <= { (send_ack_error_state != 0) ? 1'b1 : 1'b0,
+		               send_ack_seq[6:0] };
 		send_crc16_cnt <= 8;
 		do_send <= 1;
 		send_fifo_rd_en <= 1;

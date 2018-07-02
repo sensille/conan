@@ -1,22 +1,23 @@
 `timescale 1ns / 1ps
+`default_nettype none
 
 module fifo #(
 	parameter DATA_WIDTH = 72,
 	parameter ADDR_WIDTH = 6
 ) (
-	input clk,
-	input clr,
+	input wire clk,
+	input wire clr,
 	// write side
-	input [DATA_WIDTH - 1 : 0] din,
-	input wr_en,
-	output full,
+	input wire [DATA_WIDTH - 1 : 0] din,
+	input wire wr_en,
+	output wire full,
 	// read side
-	output [DATA_WIDTH - 1 : 0] dout,
-	input rd_en,
-	output empty,
+	output wire [DATA_WIDTH - 1 : 0] dout,
+	input wire rd_en,
+	output wire empty,
 
 	// status
-	output [ADDR_WIDTH - 1 : 0] elemcnt
+	output wire [ADDR_WIDTH - 1 : 0] elemcnt
 );
 
 localparam ADDRS = 1 << ADDR_WIDTH;

@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`default_nettype none
 
 module motion #(
 	parameter LEN_BITS = 8,
@@ -7,33 +8,44 @@ module motion #(
 	parameter NCNTRL = 4,
 	parameter NSTEPDIR = 6
 ) (
-	input clk,
+	input wire clk,
 
 	/* len fifo input */
-	input len_fifo_empty,
-	input [LEN_BITS-1:0] len_fifo_data,
+	input wire len_fifo_empty,
+	input wire [LEN_BITS-1:0] len_fifo_data,
 	output reg len_fifo_rd_en,
 
 	/* ring buffer input */
-	input [7:0] recv_data,	/* data at rptr */
+	input wire [7:0] recv_data,	/* data at rptr */
 	output reg [RECV_BUF_BITS-1:0] recv_rptr = 0,
+
+	/* send len fifo */
+	output reg send_fifo_wr_en = 0,
+	output reg [LEN_BITS-1:0] send_fifo_data = 0,
+	input wire send_fifo_full,
+
+	/* send ring */
+	output reg [7:0] send_ring_data = 0,
+	output reg send_ring_wr_en = 0,
+	input wire send_ring_full,
 
 	/* step/dir output */
 	output reg [NSTEPDIR-1:0] step,
 	output reg [NSTEPDIR-1:0] dir,
 
 	/* debug output */
-	output [31:0] debug
+	output wire [31:0] debug
 );
-parameter NCNTRL_BITS = $clog2(NCNTRL + 1); /* +1 for the routing to NULL */
-parameter NSTEPDIR_BITS = $clog2(NSTEPDIR);
+localparam NCNTRL_BITS = $clog2(NCNTRL);
+localparam NCNTRL_BITS_R = $clog2(NCNTRL + 1); /* +1 for the routing to NULL */
+localparam NSTEPDIR_BITS = $clog2(NSTEPDIR);
 /* step/dir from controllers */
 reg [NCNTRL:0] c_step = 0;
 wire [NCNTRL:0] c_dir;
 assign c_dir[0] = 0;
 
 /* routing information */
-reg [NCNTRL_BITS-1:0] stepdir_routing[NSTEPDIR-1:0];
+reg [NCNTRL_BITS_R-1:0] stepdir_routing[NSTEPDIR-1:0];
 /* initialize array to 0, mainly for simulation */
 initial begin: init_routing
 	integer i;
@@ -81,6 +93,7 @@ localparam P_STATE_BUILD_VAL = 1;
  * command definitions
  */
 localparam M_CMD_SET_ROUTING= 8'h60;
+localparam M_CMD_NOTIFY     = 8'h61;
 localparam M_CMD_LOADALLREG = 8'h70;
 localparam M_CMD_LOADCNT    = 8'h71;
 localparam M_CMD_LOADREG    = 8'h80;	/* 0x80-0x8f */
@@ -96,6 +109,8 @@ reg mp_cmd_end = 0;		/* end of command delay clk */
 reg mp_extend_sign = 0;		/* set when first byte is received */
 reg i_want_an_empty_block;	/* keep compiler happy */
 reg [NCNTRL-1:0] do_step;
+reg send_notify = 0;
+reg [7:0] send_notify_data = 0;
 always @(posedge clk) begin: main_block
 	integer i;
 
@@ -131,7 +146,7 @@ always @(posedge clk) begin: main_block
 		 * last stage: interpret command
 		 */
 		if (mp_cmd[7:4] == M_CMD_LOADREG[7:4]) begin
-			m_preload_reg[mp_cmd[3:0]] = mp_creg;
+			m_preload_reg[mp_cmd[NCNTRL_BITS-1:0]] = mp_creg;
 			mp_cmd_end <= 1;
 			len_fifo_rd_en <= 1;
 		end else if (mp_cmd == M_CMD_LOADALLREG) begin
@@ -166,15 +181,17 @@ always @(posedge clk) begin: main_block
 				m_state <= M_STATE_RUN;
 			end
 		end else if (mp_cmd == M_CMD_SET_ROUTING) begin
-			stepdir_routing[mp_creg[NSTEPDIR_BITS+8:NSTEPDIR_BITS]]=
-				mp_creg[NCNTRL_BITS];
+			stepdir_routing[mp_creg[NSTEPDIR_BITS-1:0]]=
+				mp_creg[NCNTRL_BITS_R-1:0];
+		end else if (mp_cmd == M_CMD_NOTIFY) begin
+			send_notify <= 1;
+			send_notify_data <= mp_creg[7:0];
 		end else begin
 			/*
 			 * unknwon command
 			 */
 			m_state <= M_STATE_ERROR;
 		end
-			
 	end else if (mp_cmd_end) begin
 		/*
 		 * end of command stage. delayed by one clock so the recv
@@ -185,6 +202,8 @@ always @(posedge clk) begin: main_block
 	end
 	if (m_cnt != 0)
 		m_cnt <= m_cnt - 1;
+	if (send_notify)
+		send_notify <= 0;
 
 	/*
 	 * motion control
@@ -207,6 +226,27 @@ always @(posedge clk) begin: main_block
 	end
 end
 
+reg [1:0] notify_state = 0;
+localparam N_IDLE = 0;
+localparam N_WRITE_DATA = 1;
+localparam N_WRITE_LEN = 2;
+always @(posedge clk) begin
+	if (send_notify) begin
+		notify_state <= N_WRITE_DATA;
+	end else if (notify_state == N_WRITE_DATA && !send_ring_full) begin
+		send_ring_data <= send_notify_data;
+		send_ring_wr_en <= 1;
+		notify_state <= N_WRITE_LEN;
+	end else if (notify_state == N_WRITE_LEN && !send_fifo_full) begin
+		send_fifo_data <= 1;
+		send_fifo_wr_en <= 1;
+	end
+	if (send_ring_wr_en)
+		send_ring_wr_en <= 0;
+	if (send_fifo_wr_en)
+		send_fifo_wr_en <= 0;
+end
+		
 genvar gi;
 generate
 	for (gi = 0; gi < NCNTRL; gi = gi + 1) begin
@@ -223,9 +263,6 @@ for (gi = 0; gi < NSTEPDIR; gi = gi + 1) begin
 end
 endgenerate
 
-/*
- * motion controller
- */
-assign debug = { m_state, mp_cmd, mp_in_cmd };
+assign debug = { m_state, mp_cmd, mp_in_cmd, 21'b0 };
 
 endmodule

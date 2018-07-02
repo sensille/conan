@@ -1,4 +1,5 @@
 `timescale 1ns / 1ps
+`default_nettype none
 
 module control #(
 	parameter LEN_BITS = 8,
@@ -10,43 +11,44 @@ module control #(
 	parameter REGBITS = SPIBITS,
 	parameter NCS = 2,
 	parameter NGPOUT = 1,
-	parameter NGPIN = 0
+	parameter NGPIN = 1
 ) (
-	input clk,
+	input wire clk,
 
 	/* len fifo input */
-	input len_fifo_empty,
-	input [LEN_BITS-1:0] len_fifo_data,
+	input wire len_fifo_empty,
+	input wire [LEN_BITS-1:0] len_fifo_data,
 	output reg len_fifo_rd_en = 0,
 
 	/* ring buffer input */
-	input [7:0] recv_data,	/* data at rptr */
+	input wire [7:0] recv_data,	/* data at rptr */
 	output reg [RECV_BUF_BITS-1:0] recv_rptr = 0,
 
 	/* send len fifo */
 	output reg send_fifo_wr_en = 0,
 	output reg [LEN_BITS-1:0] send_fifo_data = 0,
-	input send_fifo_full,
+	input wire send_fifo_full,
 
 	/* send ring */
 	output reg [7:0] send_ring_data = 0,
 	output reg send_ring_wr_en = 0,
-	input send_ring_full,
+	input wire send_ring_full,
 
 	/* stepper board control */
 	output reg sck = 0,
 	output reg [NCS-1:0] cs = { (NCS){ 1'b1 } },
-	input sdo,		/* output from slave */
+	input wire sdo,		/* output from slave */
 	output reg sdi = 0,	/* input to slave */
 	output reg [NGPOUT-1:0] gpout = 0,
-	input [NGPIN-1:0] gpin,
+	input wire [NGPIN-1:0] gpin,
 
 	/* debug output */
-	output [31:0] debug
+	output wire [31:0] debug
 );
 
+localparam SPIBYTES = SPIBITS / 8;
 localparam SPI_DIVIDER_BITS = $clog2(SPI_DIVIDER);
-localparam SPICNT_WIDTH = $clog2(SPIBITS);
+localparam SPICNT_WIDTH = $clog2(SPIBITS + 1);
 localparam NGPOUT_BITS = $clog2(NGPOUT);
 localparam NGPIN_BITS = $clog2(NGPIN);
 
@@ -171,13 +173,13 @@ always @(posedge clk) begin
 			s_spi_phase <= 1;
 	end else if (s_spi_running && s_spi_phase == 3) begin
 		cs[1 << c_cmd[3:0]] <= 1;
-		s_spi_send_result_cnt <= SPIBITS / 8;
+		s_spi_send_result_cnt <= SPIBYTES;
 		s_spi_phase <= 4;
-	end else if (s_spi_send_result_cnt && !send_ring_full &&
+	end else if (s_spi_send_result_cnt != 0 && !send_ring_full &&
 	    !send_fifo_full) begin
 		send_ring_wr_en <= 1;
 		send_ring_data <= s_spi_data_in[SPIBITS-1:SPIBITS-8];
-		s_spi_data_in <= { s_spi_data_in[SPIBITS-9:SPIBITS-16], 8'h00 };
+		s_spi_data_in <= { s_spi_data_in[SPIBITS-9:0], 8'h00 };
 		s_spi_send_result_cnt <= s_spi_send_result_cnt - 1;
 	end else if (send_ring_wr_en) begin
 		send_ring_wr_en <= 0;
@@ -190,5 +192,15 @@ always @(posedge clk) begin
 		s_spi_done <= 0;
 	end 
 end
+
+assign debug[7:0] = c_cmd;
+assign debug[8] = c_in_cmd;
+assign debug[9] = c_cmd_end;
+assign debug[10] = c_spi_start;
+assign debug[11] = s_spi_running;
+assign debug[12] = s_spi_done;
+assign debug[15:13] = s_spi_phase;
+assign debug[30:16] = s_spi_data_in[14:0];
+assign debug[31] = gpin[0];
 
 endmodule
