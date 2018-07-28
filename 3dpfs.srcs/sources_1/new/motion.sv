@@ -49,7 +49,7 @@ reg [NCNTRL_BITS_R-1:0] stepdir_routing[NSTEPDIR-1:0];
 /* initialize array to 0, mainly for simulation */
 initial begin: init_routing
 	integer i;
-	for (i = 0; i < NSTEPDIR - 1; i = i + 1) begin
+	for (i = 0; i < NSTEPDIR; i = i + 1) begin
 		stepdir_routing[i] = 0;
 	end
 end
@@ -76,7 +76,7 @@ reg [REGBITS-1:0] m_pos [NCNTRL-1:0];
 /* initialize array to 0, mainly for simulation */
 initial begin: init_mem
 	integer i;
-	for (i = 0; i < NCNTRL - 1; i = i + 1) begin
+	for (i = 0; i < NCNTRL; i = i + 1) begin
 		m_jerk[i] = 0;
 		m_accel[i] = 0;
 		m_velocity[i] = 0;
@@ -181,8 +181,10 @@ always @(posedge clk) begin: main_block
 				m_state <= M_STATE_RUN;
 			end
 		end else if (mp_cmd == M_CMD_SET_ROUTING) begin
-			stepdir_routing[mp_creg[NSTEPDIR_BITS-1:0]]=
+			stepdir_routing[mp_creg[NSTEPDIR_BITS-1+8:8]]=
 				mp_creg[NCNTRL_BITS_R-1:0];
+			mp_cmd_end <= 1;
+			len_fifo_rd_en <= 1;
 		end else if (mp_cmd == M_CMD_NOTIFY) begin
 			send_notify <= 1;
 			send_notify_data <= mp_creg[7:0];
@@ -220,8 +222,9 @@ always @(posedge clk) begin: main_block
 			m_velocity[i] <= m_velocity[i] + m_accel[i];
 			/* do_step is the overflow of the addition */
 			{ do_step[i], m_pos[i] } <=
-				{ m_pos[i][REGBITS-1], m_pos[i] } +
-			        { m_velocity[i][REGBITS-1], m_velocity[i] };
+				({ m_pos[i][REGBITS-1], m_pos[i] } +
+			         { m_velocity[i][REGBITS-1], m_velocity[i] }) ^
+				{ m_pos[i][REGBITS-1], { REGBITS { 1'b0 }}};
 		end
 	end
 end

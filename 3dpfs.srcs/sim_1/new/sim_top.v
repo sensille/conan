@@ -19,8 +19,8 @@ reg sdo;
 wire sdi;
 wire sck;
 
-//localparam BITRATE = 400000;
-localparam BITRATE = 9600;
+localparam BITRATE = 400000;
+//localparam BITRATE = 9600;
 localparam BITLENGTH = 1000000000 / BITRATE;
 
 pfs #(
@@ -106,6 +106,15 @@ initial begin: B_serial_data
 	tx = 1;
 	tx2 = 1;
 	#1000;
+	/* test gpout */
+	send2(8'h80); send2(8'h70); send2(8'h02); send2(8'he9); send2(8'ha5);
+	send2(8'h7e);
+	send2(8'h80); send2(8'h70); send2(8'h03); send2(8'h29); send2(8'h64);
+	send2(8'h7e);
+	send2(8'h80); send2(8'h71); send2(8'h03); send2(8'hb9); send2(8'h65);
+	send2(8'h7e);
+	send2(8'h80); send2(8'h71); send2(8'h02); send2(8'h79); send2(8'ha4);
+	send2(8'h7e);
 	/* test SPI */
 	send2(8'h80); send2(8'h80);
 	send2(8'h01); send2(8'h02); send2(8'h03); send2(8'h04); send2(8'h05);
@@ -113,6 +122,17 @@ initial begin: B_serial_data
 	send2(8'h21); send2(8'h22); send2(8'h23); send2(8'h24); send2(8'h25);
 	send2(8'h09); send2(8'h29); send2(8'h7e);
 	/* test motion controller */
+	send(8'h80);
+	send(8'ha0);
+	send(8'h01);
+	send(8'h7e);
+	#(BITLENGTH * 10);
+	send(8'h80); send(8'h60); send(8'h00); send(8'h01);
+	send(8'h1e); send(8'he8); send(8'h7e);
+	#(BITLENGTH * 10);
+	send(8'h80); send(8'h60); send(8'h02); send(8'h01);
+	send(8'h7d); send(8'h5e); send(8'he9); send(8'h7e);
+	#(BITLENGTH * 10);
 	send(8'h80);
 	send(8'ha0);
 	send(8'h01);
@@ -147,11 +167,11 @@ initial begin: B_serial_data
 	#(BITLENGTH * 10);
 	send(8'h04);
 	send(8'h71);
-	send(8'h02);
+	send(8'h03);
 	send(8'h00);
 	send(8'h00);
-	send(8'h3c);
-	send(8'h4b);
+	send(8'hfc);
+	send(8'h1a);
 	send(8'h7e);
 	#(BITLENGTH * 10);
 	send(8'h05);

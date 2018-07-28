@@ -2,8 +2,8 @@
 `default_nettype none
 
 module clk(
-	input	clk_50mhz,
-	output	clk
+	input	wire clk_50mhz,
+	output	wire clk
 );
 
 //

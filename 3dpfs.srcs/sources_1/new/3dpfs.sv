@@ -6,38 +6,38 @@ module pfs #(
 	parameter NSTEPDIR = 6,
 	parameter NCNTRL = 4
 ) (
-	input clk_50mhz,
+	input wire clk_50mhz,
 
-	output led,
+	output wire led,
 
-	input rx1,
-	output tx1,
-	output cts1,
+	input wire rx1,
+	output wire tx1,
+	output wire cts1,
 
-	input rx2,
-	output tx2,
-	output cts2,
+	input wire rx2,
+	output wire tx2,
+	output wire cts2,
 
 	// stepper interface
-	output en,
-	output sck,
-	output cs123,
-	output cs456,
-	output sdi,
-	input sdo,
-	output [NSTEPDIR-1:0] dir,
-	output [NSTEPDIR-1:0] step,
+	output wire en,
+	output wire sck,
+	output wire cs123,
+	output wire cs456,
+	output wire sdi,
+	input wire sdo,
+	output wire [NSTEPDIR-1:0] dir,
+	output wire [NSTEPDIR-1:0] step,
 
 	// debug
-	output debug1,
-	output debug2,
-	output debug3,
-	output debug4,
+	output wire debug1,
+	output wire debug2,
+	output wire debug3,
+	output wire debug4,
 
 	//
-	output leds_out,
-	output leds_clk,
-	output leds_cs
+	output wire leds_out,
+	output wire leds_clk,
+	output wire leds_cs
 );
 
 localparam LEN_BITS = 8;
@@ -192,10 +192,12 @@ framing #(
 );
 
 wire [31:0] control_debug;
+localparam NGPOUT = 8;
+wire [NGPOUT-1:0] gpout;
 control #(
 	.LEN_BITS(LEN_BITS),
 	.RECV_BUF_BITS(RECV_BUF_BITS),
-	.NGPOUT(1),
+	.NGPOUT(NGPOUT),
 	.NGPIN(1)
 ) u_control (
 	.clk(clk),
@@ -219,7 +221,7 @@ control #(
 	.send_ring_wr_en(send_ring_wr_en_2),
 	.send_ring_full(send_ring_full_2),
 
-	.gpout({ en }),
+	.gpout({ gpout }),
 	.gpin( { 1'b0 }),
 	.sck(sck),
 	.cs( { cs123, cs456 } ),
@@ -229,6 +231,8 @@ control #(
 	/* debug */
 	.debug(control_debug)
 );
+
+assign en = gpout[0];
 
 wire [255:0] leds;
 assign leds[47:0] = { len_fifo_empty_1, len_fifo_data_1, len_fifo_rd_en_1,
@@ -246,7 +250,8 @@ assign leds[255:224] = led_cnt;
 /* 24 signals */
 assign leds[183:160] = { rx1, tx1, cts1, rx2, tx2, cts2, en,
 	sck, cs123, cs456, sdi, sdo, dir, step };
-assign leds[223:184] = 0;
+assign leds[223:216] = gpout;
+assign leds[215:184] = 0;
 
 led7219 led7219_u(
 	.clk(clk),

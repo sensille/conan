@@ -2,9 +2,9 @@
 `default_nettype none
 
 module led7219(
-	input clk,
-	input [255:0] data,
-	output leds_out,
+	input wire clk,
+	input wire [255:0] data,
+	output wire leds_out,
 	output reg leds_clk = 0,
 	output reg leds_cs = 1
 );

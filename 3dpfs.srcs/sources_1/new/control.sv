@@ -101,11 +101,11 @@ always @(posedge clk) begin: main_block
 		end else if (c_cmd[7:4] == C_CMD_SPI[7:4]) begin
 			c_spi_start <= 1;
 		end else if (c_cmd == C_CMD_GPOUT_HI) begin
-			gpout[c_creg[NGPOUT-1:0]] <= 1;
+			gpout[c_creg[NGPOUT_BITS-1:0]] <= 1;
 			c_cmd_end <= 1;
 			len_fifo_rd_en <= 1;
 		end else if (c_cmd == C_CMD_GPOUT_LO) begin
-			gpout[c_creg[NGPOUT-1:0]] <= 0;
+			gpout[c_creg[NGPOUT_BITS-1:0]] <= 0;
 			c_cmd_end <= 1;
 			len_fifo_rd_en <= 1;
 		end else begin
