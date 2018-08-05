@@ -109,6 +109,7 @@ framing #(
 );
 
 wire [31:0] motion_debug;
+wire running;
 motion #(
 	.LEN_BITS(LEN_BITS),
 	.RECV_BUF_BITS(RECV_BUF_BITS),
@@ -138,6 +139,8 @@ motion #(
 
 	.dir(dir),
 	.step(step),
+
+	.running(running),
 
 	/* debug */
 	.debug(motion_debug)
@@ -227,6 +230,8 @@ control #(
 	.cs( { cs123, cs456 } ),
 	.sdi(sdi),
 	.sdo(sdo),
+
+	.running(running),
 
 	/* debug */
 	.debug(control_debug)

@@ -11,159 +11,384 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="3476243806631fs"></ZoomStartTime>
-      <ZoomEndTime time="3476773964157fs"></ZoomEndTime>
-      <Cursor1Time time="9001000000000fs"></Cursor1Time>
+      <ZoomStartTime time="15510545275307fs"></ZoomStartTime>
+      <ZoomEndTime time="15512982646221fs"></ZoomEndTime>
+      <Cursor1Time time="15511820000000fs"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="235"></NameColumnWidth>
-      <ValueColumnWidth column_width="302"></ValueColumnWidth>
+      <ValueColumnWidth column_width="294"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="36" />
-   <wvobject type="logic" fp_name="/sim_top/u_pfs/u_motion/clk">
-      <obj_property name="ElementShortName">clk</obj_property>
-      <obj_property name="ObjectShortName">clk</obj_property>
+   <WVObjectSize size="93" />
+   <wvobject fp_name="/sim_top/u_pfs/clk_50mhz" type="logic">
+      <obj_property name="ElementShortName">clk_50mhz</obj_property>
+      <obj_property name="ObjectShortName">clk_50mhz</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/sim_top/u_pfs/u_motion/len_fifo_empty">
-      <obj_property name="ElementShortName">len_fifo_empty</obj_property>
-      <obj_property name="ObjectShortName">len_fifo_empty</obj_property>
+   <wvobject fp_name="/sim_top/u_pfs/led" type="logic">
+      <obj_property name="ElementShortName">led</obj_property>
+      <obj_property name="ObjectShortName">led</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/len_fifo_data">
-      <obj_property name="ElementShortName">len_fifo_data[7:0]</obj_property>
-      <obj_property name="ObjectShortName">len_fifo_data[7:0]</obj_property>
+   <wvobject fp_name="/sim_top/u_pfs/rx1" type="logic">
+      <obj_property name="ElementShortName">rx1</obj_property>
+      <obj_property name="ObjectShortName">rx1</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/sim_top/u_pfs/u_motion/len_fifo_rd_en">
-      <obj_property name="ElementShortName">len_fifo_rd_en</obj_property>
-      <obj_property name="ObjectShortName">len_fifo_rd_en</obj_property>
+   <wvobject fp_name="/sim_top/u_pfs/tx1" type="logic">
+      <obj_property name="ElementShortName">tx1</obj_property>
+      <obj_property name="ObjectShortName">tx1</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/recv_data">
-      <obj_property name="ElementShortName">recv_data[7:0]</obj_property>
-      <obj_property name="ObjectShortName">recv_data[7:0]</obj_property>
+   <wvobject fp_name="/sim_top/u_pfs/cts1" type="logic">
+      <obj_property name="ElementShortName">cts1</obj_property>
+      <obj_property name="ObjectShortName">cts1</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/recv_rptr">
-      <obj_property name="ElementShortName">recv_rptr[9:0]</obj_property>
-      <obj_property name="ObjectShortName">recv_rptr[9:0]</obj_property>
+   <wvobject fp_name="/sim_top/u_pfs/rx2" type="logic">
+      <obj_property name="ElementShortName">rx2</obj_property>
+      <obj_property name="ObjectShortName">rx2</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/sim_top/u_pfs/u_motion/send_fifo_wr_en">
-      <obj_property name="ElementShortName">send_fifo_wr_en</obj_property>
-      <obj_property name="ObjectShortName">send_fifo_wr_en</obj_property>
+   <wvobject fp_name="/sim_top/u_pfs/tx2" type="logic">
+      <obj_property name="ElementShortName">tx2</obj_property>
+      <obj_property name="ObjectShortName">tx2</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/send_fifo_data">
-      <obj_property name="ElementShortName">send_fifo_data[7:0]</obj_property>
-      <obj_property name="ObjectShortName">send_fifo_data[7:0]</obj_property>
+   <wvobject fp_name="/sim_top/u_pfs/cts2" type="logic">
+      <obj_property name="ElementShortName">cts2</obj_property>
+      <obj_property name="ObjectShortName">cts2</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/sim_top/u_pfs/u_motion/send_fifo_full">
-      <obj_property name="ElementShortName">send_fifo_full</obj_property>
-      <obj_property name="ObjectShortName">send_fifo_full</obj_property>
+   <wvobject fp_name="/sim_top/u_pfs/en" type="logic">
+      <obj_property name="ElementShortName">en</obj_property>
+      <obj_property name="ObjectShortName">en</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/send_ring_data">
-      <obj_property name="ElementShortName">send_ring_data[7:0]</obj_property>
-      <obj_property name="ObjectShortName">send_ring_data[7:0]</obj_property>
+   <wvobject fp_name="/sim_top/u_pfs/sck" type="logic">
+      <obj_property name="ElementShortName">sck</obj_property>
+      <obj_property name="ObjectShortName">sck</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/sim_top/u_pfs/u_motion/send_ring_wr_en">
-      <obj_property name="ElementShortName">send_ring_wr_en</obj_property>
-      <obj_property name="ObjectShortName">send_ring_wr_en</obj_property>
+   <wvobject fp_name="/sim_top/u_pfs/cs123" type="logic">
+      <obj_property name="ElementShortName">cs123</obj_property>
+      <obj_property name="ObjectShortName">cs123</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/sim_top/u_pfs/u_motion/send_ring_full">
-      <obj_property name="ElementShortName">send_ring_full</obj_property>
-      <obj_property name="ObjectShortName">send_ring_full</obj_property>
+   <wvobject fp_name="/sim_top/u_pfs/cs456" type="logic">
+      <obj_property name="ElementShortName">cs456</obj_property>
+      <obj_property name="ObjectShortName">cs456</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/step">
-      <obj_property name="ElementShortName">step[5:0]</obj_property>
-      <obj_property name="ObjectShortName">step[5:0]</obj_property>
+   <wvobject fp_name="/sim_top/u_pfs/sdi" type="logic">
+      <obj_property name="ElementShortName">sdi</obj_property>
+      <obj_property name="ObjectShortName">sdi</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/dir">
+   <wvobject fp_name="/sim_top/u_pfs/sdo" type="logic">
+      <obj_property name="ElementShortName">sdo</obj_property>
+      <obj_property name="ObjectShortName">sdo</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/dir" type="array">
       <obj_property name="ElementShortName">dir[5:0]</obj_property>
       <obj_property name="ObjectShortName">dir[5:0]</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/debug">
+   <wvobject fp_name="/sim_top/u_pfs/step" type="array">
+      <obj_property name="ElementShortName">step[5:0]</obj_property>
+      <obj_property name="ObjectShortName">step[5:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/debug1" type="logic">
+      <obj_property name="ElementShortName">debug1</obj_property>
+      <obj_property name="ObjectShortName">debug1</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/debug2" type="logic">
+      <obj_property name="ElementShortName">debug2</obj_property>
+      <obj_property name="ObjectShortName">debug2</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/debug3" type="logic">
+      <obj_property name="ElementShortName">debug3</obj_property>
+      <obj_property name="ObjectShortName">debug3</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/debug4" type="logic">
+      <obj_property name="ElementShortName">debug4</obj_property>
+      <obj_property name="ObjectShortName">debug4</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/leds_out" type="logic">
+      <obj_property name="ElementShortName">leds_out</obj_property>
+      <obj_property name="ObjectShortName">leds_out</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/leds_clk" type="logic">
+      <obj_property name="ElementShortName">leds_clk</obj_property>
+      <obj_property name="ObjectShortName">leds_clk</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/leds_cs" type="logic">
+      <obj_property name="ElementShortName">leds_cs</obj_property>
+      <obj_property name="ObjectShortName">leds_cs</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/clk" type="logic">
+      <obj_property name="ElementShortName">clk</obj_property>
+      <obj_property name="ObjectShortName">clk</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/led_cnt" type="array">
+      <obj_property name="ElementShortName">led_cnt[31:0]</obj_property>
+      <obj_property name="ObjectShortName">led_cnt[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/len_fifo_empty_1" type="logic">
+      <obj_property name="ElementShortName">len_fifo_empty_1</obj_property>
+      <obj_property name="ObjectShortName">len_fifo_empty_1</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/len_fifo_data_1" type="array">
+      <obj_property name="ElementShortName">len_fifo_data_1[7:0]</obj_property>
+      <obj_property name="ObjectShortName">len_fifo_data_1[7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/len_fifo_rd_en_1" type="logic">
+      <obj_property name="ElementShortName">len_fifo_rd_en_1</obj_property>
+      <obj_property name="ObjectShortName">len_fifo_rd_en_1</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/ring_data_1" type="array">
+      <obj_property name="ElementShortName">ring_data_1[7:0]</obj_property>
+      <obj_property name="ObjectShortName">ring_data_1[7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/recv_rptr_1" type="array">
+      <obj_property name="ElementShortName">recv_rptr_1[9:0]</obj_property>
+      <obj_property name="ObjectShortName">recv_rptr_1[9:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/send_fifo_full_1" type="logic">
+      <obj_property name="ElementShortName">send_fifo_full_1</obj_property>
+      <obj_property name="ObjectShortName">send_fifo_full_1</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/send_fifo_wr_en_1" type="logic">
+      <obj_property name="ElementShortName">send_fifo_wr_en_1</obj_property>
+      <obj_property name="ObjectShortName">send_fifo_wr_en_1</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/send_fifo_data_1" type="array">
+      <obj_property name="ElementShortName">send_fifo_data_1[7:0]</obj_property>
+      <obj_property name="ObjectShortName">send_fifo_data_1[7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/send_ring_full_1" type="logic">
+      <obj_property name="ElementShortName">send_ring_full_1</obj_property>
+      <obj_property name="ObjectShortName">send_ring_full_1</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/send_ring_wr_en_1" type="logic">
+      <obj_property name="ElementShortName">send_ring_wr_en_1</obj_property>
+      <obj_property name="ObjectShortName">send_ring_wr_en_1</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/send_ring_data_1" type="array">
+      <obj_property name="ElementShortName">send_ring_data_1[7:0]</obj_property>
+      <obj_property name="ObjectShortName">send_ring_data_1[7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/motion_debug" type="array">
+      <obj_property name="ElementShortName">motion_debug[31:0]</obj_property>
+      <obj_property name="ObjectShortName">motion_debug[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/len_fifo_empty_2" type="logic">
+      <obj_property name="ElementShortName">len_fifo_empty_2</obj_property>
+      <obj_property name="ObjectShortName">len_fifo_empty_2</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/len_fifo_data_2" type="array">
+      <obj_property name="ElementShortName">len_fifo_data_2[7:0]</obj_property>
+      <obj_property name="ObjectShortName">len_fifo_data_2[7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/len_fifo_rd_en_2" type="logic">
+      <obj_property name="ElementShortName">len_fifo_rd_en_2</obj_property>
+      <obj_property name="ObjectShortName">len_fifo_rd_en_2</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/ring_data_2" type="array">
+      <obj_property name="ElementShortName">ring_data_2[7:0]</obj_property>
+      <obj_property name="ObjectShortName">ring_data_2[7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/recv_rptr_2" type="array">
+      <obj_property name="ElementShortName">recv_rptr_2[9:0]</obj_property>
+      <obj_property name="ObjectShortName">recv_rptr_2[9:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/send_fifo_full_2" type="logic">
+      <obj_property name="ElementShortName">send_fifo_full_2</obj_property>
+      <obj_property name="ObjectShortName">send_fifo_full_2</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/send_fifo_wr_en_2" type="logic">
+      <obj_property name="ElementShortName">send_fifo_wr_en_2</obj_property>
+      <obj_property name="ObjectShortName">send_fifo_wr_en_2</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/send_fifo_data_2" type="array">
+      <obj_property name="ElementShortName">send_fifo_data_2[7:0]</obj_property>
+      <obj_property name="ObjectShortName">send_fifo_data_2[7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/send_ring_full_2" type="logic">
+      <obj_property name="ElementShortName">send_ring_full_2</obj_property>
+      <obj_property name="ObjectShortName">send_ring_full_2</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/send_ring_wr_en_2" type="logic">
+      <obj_property name="ElementShortName">send_ring_wr_en_2</obj_property>
+      <obj_property name="ObjectShortName">send_ring_wr_en_2</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/send_ring_data_2" type="array">
+      <obj_property name="ElementShortName">send_ring_data_2[7:0]</obj_property>
+      <obj_property name="ObjectShortName">send_ring_data_2[7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/control_debug" type="array">
+      <obj_property name="ElementShortName">control_debug[31:0]</obj_property>
+      <obj_property name="ObjectShortName">control_debug[31:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/gpout" type="array">
+      <obj_property name="ElementShortName">gpout[7:0]</obj_property>
+      <obj_property name="ObjectShortName">gpout[7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/u_framing_2/uart_u/transmit" type="logic">
+      <obj_property name="ElementShortName">transmit</obj_property>
+      <obj_property name="ObjectShortName">transmit</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/u_framing_2/uart_u/tx_byte" type="array">
+      <obj_property name="ElementShortName">tx_byte[7:0]</obj_property>
+      <obj_property name="ObjectShortName">tx_byte[7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/u_framing_2/uart_u/received" type="logic">
+      <obj_property name="ElementShortName">received</obj_property>
+      <obj_property name="ObjectShortName">received</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/u_framing_2/uart_u/rx_byte" type="array">
+      <obj_property name="ElementShortName">rx_byte[7:0]</obj_property>
+      <obj_property name="ObjectShortName">rx_byte[7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/u_framing_2/uart_u/is_receiving" type="logic">
+      <obj_property name="ElementShortName">is_receiving</obj_property>
+      <obj_property name="ObjectShortName">is_receiving</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/u_framing_2/uart_u/is_transmitting" type="logic">
+      <obj_property name="ElementShortName">is_transmitting</obj_property>
+      <obj_property name="ObjectShortName">is_transmitting</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/clk" type="logic">
+      <obj_property name="ElementShortName">clk</obj_property>
+      <obj_property name="ObjectShortName">clk</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/len_fifo_empty" type="logic">
+      <obj_property name="ElementShortName">len_fifo_empty</obj_property>
+      <obj_property name="ObjectShortName">len_fifo_empty</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/len_fifo_data" type="array">
+      <obj_property name="ElementShortName">len_fifo_data[7:0]</obj_property>
+      <obj_property name="ObjectShortName">len_fifo_data[7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/len_fifo_rd_en" type="logic">
+      <obj_property name="ElementShortName">len_fifo_rd_en</obj_property>
+      <obj_property name="ObjectShortName">len_fifo_rd_en</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/recv_data" type="array">
+      <obj_property name="ElementShortName">recv_data[7:0]</obj_property>
+      <obj_property name="ObjectShortName">recv_data[7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/recv_rptr" type="array">
+      <obj_property name="ElementShortName">recv_rptr[9:0]</obj_property>
+      <obj_property name="ObjectShortName">recv_rptr[9:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/send_fifo_wr_en" type="logic">
+      <obj_property name="ElementShortName">send_fifo_wr_en</obj_property>
+      <obj_property name="ObjectShortName">send_fifo_wr_en</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/send_fifo_data" type="array">
+      <obj_property name="ElementShortName">send_fifo_data[7:0]</obj_property>
+      <obj_property name="ObjectShortName">send_fifo_data[7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/send_fifo_full" type="logic">
+      <obj_property name="ElementShortName">send_fifo_full</obj_property>
+      <obj_property name="ObjectShortName">send_fifo_full</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/send_ring_data" type="array">
+      <obj_property name="ElementShortName">send_ring_data[7:0]</obj_property>
+      <obj_property name="ObjectShortName">send_ring_data[7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/send_ring_wr_en" type="logic">
+      <obj_property name="ElementShortName">send_ring_wr_en</obj_property>
+      <obj_property name="ObjectShortName">send_ring_wr_en</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/send_ring_full" type="logic">
+      <obj_property name="ElementShortName">send_ring_full</obj_property>
+      <obj_property name="ObjectShortName">send_ring_full</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/step" type="array">
+      <obj_property name="ElementShortName">step[5:0]</obj_property>
+      <obj_property name="ObjectShortName">step[5:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/dir" type="array">
+      <obj_property name="ElementShortName">dir[5:0]</obj_property>
+      <obj_property name="ObjectShortName">dir[5:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/debug" type="array">
       <obj_property name="ElementShortName">debug[31:0]</obj_property>
       <obj_property name="ObjectShortName">debug[31:0]</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/c_step">
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/c_step" type="array">
       <obj_property name="ElementShortName">c_step[4:0]</obj_property>
       <obj_property name="ObjectShortName">c_step[4:0]</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/c_dir">
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/c_dir" type="array">
       <obj_property name="ElementShortName">c_dir[4:0]</obj_property>
       <obj_property name="ObjectShortName">c_dir[4:0]</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/stepdir_routing">
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/stepdir_routing" type="array">
       <obj_property name="ElementShortName">stepdir_routing[5:0][2:0]</obj_property>
       <obj_property name="ObjectShortName">stepdir_routing[5:0][2:0]</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/m_preload_reg">
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/m_preload_reg" type="array">
       <obj_property name="ElementShortName">m_preload_reg[3:0][63:0]</obj_property>
       <obj_property name="ObjectShortName">m_preload_reg[3:0][63:0]</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/m_state">
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/m_state" type="array">
       <obj_property name="ElementShortName">m_state[1:0]</obj_property>
       <obj_property name="ObjectShortName">m_state[1:0]</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/m_cnt">
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/m_cnt" type="array">
       <obj_property name="ElementShortName">m_cnt[63:0]</obj_property>
       <obj_property name="ObjectShortName">m_cnt[63:0]</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/m_jerk">
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/m_jerk" type="array">
       <obj_property name="ElementShortName">m_jerk[3:0][63:0]</obj_property>
       <obj_property name="ObjectShortName">m_jerk[3:0][63:0]</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/m_accel">
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/m_accel" type="array">
       <obj_property name="ElementShortName">m_accel[3:0][63:0]</obj_property>
       <obj_property name="ObjectShortName">m_accel[3:0][63:0]</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/m_velocity">
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/m_velocity" type="array">
       <obj_property name="ElementShortName">m_velocity[3:0][63:0]</obj_property>
       <obj_property name="ObjectShortName">m_velocity[3:0][63:0]</obj_property>
-      <obj_property name="isExpanded"></obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/m_pos">
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/m_pos" type="array">
       <obj_property name="ElementShortName">m_pos[3:0][63:0]</obj_property>
       <obj_property name="ObjectShortName">m_pos[3:0][63:0]</obj_property>
-      <obj_property name="isExpanded"></obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/mp_len">
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/mp_len" type="array">
       <obj_property name="ElementShortName">mp_len[7:0]</obj_property>
       <obj_property name="ObjectShortName">mp_len[7:0]</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/mp_creg">
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/mp_creg" type="array">
       <obj_property name="ElementShortName">mp_creg[63:0]</obj_property>
       <obj_property name="ObjectShortName">mp_creg[63:0]</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/mp_cmd">
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/mp_cmd" type="array">
       <obj_property name="ElementShortName">mp_cmd[7:0]</obj_property>
       <obj_property name="ObjectShortName">mp_cmd[7:0]</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/sim_top/u_pfs/u_motion/mp_in_cmd">
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/mp_in_cmd" type="logic">
       <obj_property name="ElementShortName">mp_in_cmd</obj_property>
       <obj_property name="ObjectShortName">mp_in_cmd</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/sim_top/u_pfs/u_motion/mp_cmd_end">
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/mp_cmd_end" type="logic">
       <obj_property name="ElementShortName">mp_cmd_end</obj_property>
       <obj_property name="ObjectShortName">mp_cmd_end</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/sim_top/u_pfs/u_motion/mp_extend_sign">
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/mp_extend_sign" type="logic">
       <obj_property name="ElementShortName">mp_extend_sign</obj_property>
       <obj_property name="ObjectShortName">mp_extend_sign</obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/sim_top/u_pfs/u_motion/i_want_an_empty_block">
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/i_want_an_empty_block" type="logic">
       <obj_property name="ElementShortName">i_want_an_empty_block</obj_property>
       <obj_property name="ObjectShortName">i_want_an_empty_block</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/do_step">
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/do_step" type="array">
       <obj_property name="ElementShortName">do_step[3:0]</obj_property>
       <obj_property name="ObjectShortName">do_step[3:0]</obj_property>
-      <obj_property name="isExpanded"></obj_property>
    </wvobject>
-   <wvobject type="logic" fp_name="/sim_top/u_pfs/u_motion/send_notify">
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/send_notify" type="logic">
       <obj_property name="ElementShortName">send_notify</obj_property>
       <obj_property name="ObjectShortName">send_notify</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/send_notify_data">
-      <obj_property name="ElementShortName">send_notify_data[7:0]</obj_property>
-      <obj_property name="ObjectShortName">send_notify_data[7:0]</obj_property>
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/send_notify_data" type="array">
+      <obj_property name="ElementShortName">send_notify_data[31:0]</obj_property>
+      <obj_property name="ObjectShortName">send_notify_data[31:0]</obj_property>
    </wvobject>
-   <wvobject type="array" fp_name="/sim_top/u_pfs/u_motion/notify_state">
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/motion_reset" type="logic">
+      <obj_property name="ElementShortName">motion_reset</obj_property>
+      <obj_property name="ObjectShortName">motion_reset</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/notify_state" type="array">
       <obj_property name="ElementShortName">notify_state[1:0]</obj_property>
       <obj_property name="ObjectShortName">notify_state[1:0]</obj_property>
    </wvobject>

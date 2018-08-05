@@ -33,6 +33,9 @@ module motion #(
 	output reg [NSTEPDIR-1:0] step,
 	output reg [NSTEPDIR-1:0] dir,
 
+	/* run control */
+	input wire running,
+
 	/* debug output */
 	output wire [31:0] debug
 );
@@ -92,8 +95,10 @@ localparam P_STATE_BUILD_VAL = 1;
 /*
  * command definitions
  */
+localparam M_CMD_RESET      = 8'h40;
 localparam M_CMD_SET_ROUTING= 8'h60;
 localparam M_CMD_NOTIFY     = 8'h61;
+localparam M_CMD_WAIT_IDLE  = 8'h68;
 localparam M_CMD_LOADALLREG = 8'h70;
 localparam M_CMD_LOADCNT    = 8'h71;
 localparam M_CMD_LOADREG    = 8'h80;	/* 0x80-0x8f */
@@ -110,7 +115,8 @@ reg mp_extend_sign = 0;		/* set when first byte is received */
 reg i_want_an_empty_block;	/* keep compiler happy */
 reg [NCNTRL-1:0] do_step;
 reg send_notify = 0;
-reg [7:0] send_notify_data = 0;
+reg [31:0] send_notify_data = 0;
+reg motion_reset = 0;
 always @(posedge clk) begin: main_block
 	integer i;
 
@@ -146,7 +152,7 @@ always @(posedge clk) begin: main_block
 		 * last stage: interpret command
 		 */
 		if (mp_cmd[7:4] == M_CMD_LOADREG[7:4]) begin
-			m_preload_reg[mp_cmd[NCNTRL_BITS-1:0]] = mp_creg;
+			m_preload_reg[mp_cmd[NCNTRL_BITS-1:0]] <= mp_creg;
 			mp_cmd_end <= 1;
 			len_fifo_rd_en <= 1;
 		end else if (mp_cmd == M_CMD_LOADALLREG) begin
@@ -155,8 +161,12 @@ always @(posedge clk) begin: main_block
 			end
 			mp_cmd_end <= 1;
 			len_fifo_rd_en <= 1;
-		end else if (mp_cmd == M_CMD_LOADCNT) begin
-			if (m_state == M_STATE_RUN && m_cnt != 0) begin
+		end else if (mp_cmd == M_CMD_LOADCNT ||
+		             mp_cmd == M_CMD_FREERUN) begin
+			if (!running) begin
+				/* wait for running before loading cnt */
+				i_want_an_empty_block <= 0;
+			end else if (m_state == M_STATE_RUN && m_cnt != 0) begin
 				/*
 				 * current motion still running, wait for it
 				 * to finish before loading cnt
@@ -167,6 +177,7 @@ always @(posedge clk) begin: main_block
 				 * current motion runs until an event occurs
 				 */
 				/* XXX TODO */
+				if (
 				i_want_an_empty_block <= 0;
 			end else if (m_state != M_STATE_ERROR) begin
 				/*
@@ -178,16 +189,30 @@ always @(posedge clk) begin: main_block
 				end;
 				mp_cmd_end <= 1;
 				len_fifo_rd_en <= 1;
-				m_state <= M_STATE_RUN;
+				if (mp_cmd == M_CMD_FREERUN)
+					m_state <= M_STATE_FREERUN;
+				else
+					m_state <= M_STATE_RUN;
 			end
 		end else if (mp_cmd == M_CMD_SET_ROUTING) begin
-			stepdir_routing[mp_creg[NSTEPDIR_BITS-1+8:8]]=
+			stepdir_routing[mp_creg[NSTEPDIR_BITS-1+8:8]] <=
 				mp_creg[NCNTRL_BITS_R-1:0];
 			mp_cmd_end <= 1;
 			len_fifo_rd_en <= 1;
 		end else if (mp_cmd == M_CMD_NOTIFY) begin
 			send_notify <= 1;
-			send_notify_data <= mp_creg[7:0];
+			send_notify_data <= mp_creg[31:0];
+			mp_cmd_end <= 1;
+			len_fifo_rd_en <= 1;
+		end else if (mp_cmd == M_CMD_RESET) begin
+			motion_reset <= 1;
+			mp_cmd_end <= 1;
+			len_fifo_rd_en <= 1;
+		end else if (mp_cmd == M_CMD_WAIT_IDLE) begin
+			if (m_cnt == 0) begin
+				mp_cmd_end <= 1;
+				len_fifo_rd_en <= 1;
+			end
 		end else begin
 			/*
 			 * unknwon command
@@ -227,27 +252,58 @@ always @(posedge clk) begin: main_block
 				{ m_pos[i][REGBITS-1], { REGBITS { 1'b0 }}};
 		end
 	end
+	if (motion_reset) begin
+		for (i = 0; i < NCNTRL; i = i + 1) begin
+			m_preload_reg[i] <= 0;
+			m_jerk[i] <= 0;
+			m_accel[i] <= 0;
+			m_velocity[i] <= 0;
+			do_step[i] <= 0;
+			m_pos[i] <= 0;
+			c_step[i + 1] <= 0;
+		end
+		for (i = 0; i < NSTEPDIR; i = i + 1) begin
+			stepdir_routing[i] <= 0;
+		end
+		motion_reset <= 0;
+	end
 end
 
-reg [1:0] notify_state = 0;
+reg [2:0] notify_state = 0;
 localparam N_IDLE = 0;
-localparam N_WRITE_DATA = 1;
-localparam N_WRITE_LEN = 2;
+localparam N_WRITE_DATA1 = 1;
+localparam N_WRITE_DATA2 = 2;
+localparam N_WRITE_DATA3 = 3;
+localparam N_WRITE_DATA4 = 4;
+localparam N_WRITE_LEN = 5;
 always @(posedge clk) begin
-	if (send_notify) begin
-		notify_state <= N_WRITE_DATA;
-	end else if (notify_state == N_WRITE_DATA && !send_ring_full) begin
-		send_ring_data <= send_notify_data;
-		send_ring_wr_en <= 1;
-		notify_state <= N_WRITE_LEN;
-	end else if (notify_state == N_WRITE_LEN && !send_fifo_full) begin
-		send_fifo_data <= 1;
-		send_fifo_wr_en <= 1;
-	end
 	if (send_ring_wr_en)
 		send_ring_wr_en <= 0;
 	if (send_fifo_wr_en)
 		send_fifo_wr_en <= 0;
+	if (send_notify) begin
+		notify_state <= N_WRITE_DATA1;
+	end else if (notify_state == N_WRITE_DATA1 && !send_ring_full) begin
+		send_ring_data <= send_notify_data[31:24];
+		send_ring_wr_en <= 1;
+		notify_state <= N_WRITE_DATA2;
+	end else if (notify_state == N_WRITE_DATA2 && !send_ring_full) begin
+		send_ring_data <= send_notify_data[23:16];
+		send_ring_wr_en <= 1;
+		notify_state <= N_WRITE_DATA3;
+	end else if (notify_state == N_WRITE_DATA3 && !send_ring_full) begin
+		send_ring_data <= send_notify_data[15:8];
+		send_ring_wr_en <= 1;
+		notify_state <= N_WRITE_DATA4;
+	end else if (notify_state == N_WRITE_DATA4 && !send_ring_full) begin
+		send_ring_data <= send_notify_data[7:0];
+		send_ring_wr_en <= 1;
+		notify_state <= N_WRITE_LEN;
+	end else if (notify_state == N_WRITE_LEN && !send_fifo_full) begin
+		send_fifo_data <= 4;
+		send_fifo_wr_en <= 1;
+		notify_state <= N_IDLE;
+	end
 end
 		
 genvar gi;

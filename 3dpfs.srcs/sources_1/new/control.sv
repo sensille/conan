@@ -36,11 +36,14 @@ module control #(
 
 	/* stepper board control */
 	output reg sck = 0,
-	output reg [NCS-1:0] cs = { (NCS){ 1'b1 } },
+	output reg [NCS-1:0] cs = { (NCS) { 1'b1 } },
 	input wire sdo,		/* output from slave */
 	output reg sdi = 0,	/* input to slave */
-	output reg [NGPOUT-1:0] gpout = 0,
+	output reg [NGPOUT-1:0] gpout = { (NGPOUT) { 1'b1 } },
 	input wire [NGPIN-1:0] gpin,
+
+	/* motion control start/stop */
+	output reg running = 0,
 
 	/* debug output */
 	output wire [31:0] debug
@@ -52,10 +55,12 @@ localparam SPICNT_WIDTH = $clog2(SPIBITS + 1);
 localparam NGPOUT_BITS = $clog2(NGPOUT);
 localparam NGPIN_BITS = $clog2(NGPIN);
 
-localparam C_CMD_SPI = 8'h80;	/* 0x80-0x8f, lower 4 bit for cs */
+localparam C_CMD_START = 8'h60;
+localparam C_CMD_STOP = 8'h61;
 localparam C_CMD_GPOUT_HI = 8'h70;
 localparam C_CMD_GPOUT_LO = 8'h71;
 localparam C_CMD_GPIN = 8'h78;
+localparam C_CMD_SPI = 8'h80;	/* 0x80-0x8f, lower 4 bit for cs */
 
 reg [7:0] c_len = 0;
 reg [7:0] c_cmd = 0;
@@ -106,6 +111,14 @@ always @(posedge clk) begin: main_block
 			len_fifo_rd_en <= 1;
 		end else if (c_cmd == C_CMD_GPOUT_LO) begin
 			gpout[c_creg[NGPOUT_BITS-1:0]] <= 0;
+			c_cmd_end <= 1;
+			len_fifo_rd_en <= 1;
+		end else if (c_cmd == C_CMD_START) begin
+			running <= 1;
+			c_cmd_end <= 1;
+			len_fifo_rd_en <= 1;
+		end else if (c_cmd == C_CMD_STOP) begin
+			running <= 0;
 			c_cmd_end <= 1;
 			len_fifo_rd_en <= 1;
 		end else begin

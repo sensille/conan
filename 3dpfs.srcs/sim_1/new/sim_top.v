@@ -116,11 +116,11 @@ initial begin: B_serial_data
 	send2(8'h80); send2(8'h71); send2(8'h02); send2(8'h79); send2(8'ha4);
 	send2(8'h7e);
 	/* test SPI */
-	send2(8'h80); send2(8'h80);
+	send2(8'h01); send2(8'h80);
 	send2(8'h01); send2(8'h02); send2(8'h03); send2(8'h04); send2(8'h05);
 	send2(8'h11); send2(8'h12); send2(8'h13); send2(8'h14); send2(8'h15);
 	send2(8'h21); send2(8'h22); send2(8'h23); send2(8'h24); send2(8'h25);
-	send2(8'h09); send2(8'h29); send2(8'h7e);
+	send2(8'h71); send2(8'h19); send2(8'h7e);
 	/* test motion controller */
 	send(8'h80);
 	send(8'ha0);
@@ -192,9 +192,17 @@ initial begin: B_serial_data
 	send(8'hc2);
 	send(8'h7e);
 	#(BITLENGTH * 10);
+	send(8'h07);
+	send(8'h61);
+	send(8'h55);
+	send(8'haa);
+	send(8'h85);
+	send(8'hef);
+	send(8'h7e);
+	#(BITLENGTH * 10);
 end
 
-reg [119:0] data_out = 120'h550102030466111213147721222324;
+reg [119:0] data_out = 120'h391100006839110000683911000068;
 always @(negedge sck) begin
 	if (cs123 == 0) begin
 		sdo <= data_out[119];

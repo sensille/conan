@@ -321,7 +321,7 @@ always @(posedge clk) begin
 		send_crc16_cnt <= send_crc16_cnt - 1;
 		send_crc16_in <= { 1'b0, send_crc16_in[7:1] };
 	end
-	if (do_send && !tx_transmitting) begin
+	if (do_send && !tx_transmitting && !tx_en) begin
 		if (send_in_escape) begin
 			tx_data <= send_byte ^ 8'h20;
 			do_send <= 0;
