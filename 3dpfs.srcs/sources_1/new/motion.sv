@@ -6,7 +6,8 @@ module motion #(
 	parameter RECV_BUF_BITS = 10,
 	parameter REGBITS = 64,
 	parameter NCNTRL = 4,
-	parameter NSTEPDIR = 6
+	parameter NSTEPDIR = 6,
+	parameter NENDSTOP = 2
 ) (
 	input wire clk,
 
@@ -35,6 +36,9 @@ module motion #(
 
 	/* run control */
 	input wire running,
+
+	/* endstop sensors */
+	input wire [NENDSTOP-1:0] endstop,
 
 	/* debug output */
 	output wire [31:0] debug
@@ -65,11 +69,7 @@ reg [REGBITS-1:0] m_preload_reg [NCNTRL-1:0];
 /*
  * motion state machine
  */
-localparam M_STATE_STOP = 0;
-localparam M_STATE_RUN = 1;
-localparam M_STATE_FREERUN = 2;
-localparam M_STATE_ERROR = 3;
-reg [1:0] m_state = M_STATE_STOP;
+reg m_state_error = 0;
 reg [REGBITS-1:0] m_cnt = 0;
 reg [REGBITS-1:0] m_jerk [NCNTRL-1:0];
 reg [REGBITS-1:0] m_accel [NCNTRL-1:0];
@@ -99,6 +99,9 @@ localparam M_CMD_RESET      = 8'h40;
 localparam M_CMD_SET_ROUTING= 8'h60;
 localparam M_CMD_NOTIFY     = 8'h61;
 localparam M_CMD_WAIT_IDLE  = 8'h68;
+localparam M_CMD_WAIT_EVENT = 8'h69;
+localparam M_CMD_ENDSTOP_MASK= 8'h6a;
+localparam M_CMD_ENDSTOP_POL= 8'h6b;
 localparam M_CMD_LOADALLREG = 8'h70;
 localparam M_CMD_LOADCNT    = 8'h71;
 localparam M_CMD_LOADREG    = 8'h80;	/* 0x80-0x8f */
@@ -117,11 +120,20 @@ reg [NCNTRL-1:0] do_step;
 reg send_notify = 0;
 reg [31:0] send_notify_data = 0;
 reg motion_reset = 0;
+reg [NENDSTOP-1:0] endstop_mask = 0;
+reg [NENDSTOP-1:0] endstop_pol = 0;
+wire [NENDSTOP-1:0] endstop_int = endstop ^ endstop_pol;
+
 always @(posedge clk) begin: main_block
 	integer i;
 
 	len_fifo_rd_en <= 0;
-	if (m_state == M_STATE_ERROR) begin
+	if (m_cnt != 0)
+		m_cnt <= m_cnt - 1;
+	if (send_notify)
+		send_notify <= 0;
+
+	if (m_state_error) begin
 		/*
 		 * just stay in error state
 		 */
@@ -161,25 +173,17 @@ always @(posedge clk) begin: main_block
 			end
 			mp_cmd_end <= 1;
 			len_fifo_rd_en <= 1;
-		end else if (mp_cmd == M_CMD_LOADCNT ||
-		             mp_cmd == M_CMD_FREERUN) begin
+		end else if (mp_cmd == M_CMD_LOADCNT) begin
 			if (!running) begin
 				/* wait for running before loading cnt */
 				i_want_an_empty_block <= 0;
-			end else if (m_state == M_STATE_RUN && m_cnt != 0) begin
+			end else if (m_cnt != 0) begin
 				/*
 				 * current motion still running, wait for it
 				 * to finish before loading cnt
 				 */
 				i_want_an_empty_block <= 0;
-			end else if (m_state == M_STATE_FREERUN) begin
-				/*
-				 * current motion runs until an event occurs
-				 */
-				/* XXX TODO */
-				if (
-				i_want_an_empty_block <= 0;
-			end else if (m_state != M_STATE_ERROR) begin
+			end else if (!m_state_error) begin
 				/*
 				 * load staged registers + cnt
 				 */
@@ -189,10 +193,6 @@ always @(posedge clk) begin: main_block
 				end;
 				mp_cmd_end <= 1;
 				len_fifo_rd_en <= 1;
-				if (mp_cmd == M_CMD_FREERUN)
-					m_state <= M_STATE_FREERUN;
-				else
-					m_state <= M_STATE_RUN;
 			end
 		end else if (mp_cmd == M_CMD_SET_ROUTING) begin
 			stepdir_routing[mp_creg[NSTEPDIR_BITS-1+8:8]] <=
@@ -213,11 +213,26 @@ always @(posedge clk) begin: main_block
 				mp_cmd_end <= 1;
 				len_fifo_rd_en <= 1;
 			end
+		end else if (mp_cmd == M_CMD_WAIT_EVENT) begin
+			if ((endstop_int & mp_creg[NENDSTOP-1:0]) ||
+			     m_cnt == 0) begin
+				m_cnt <= 0;	/* stop running cnt */
+				mp_cmd_end <= 1;
+				len_fifo_rd_en <= 1;
+			end
+		end else if (mp_cmd == M_CMD_ENDSTOP_MASK) begin
+			endstop_mask <= mp_creg[NENDSTOP-1:0];
+			mp_cmd_end <= 1;
+			len_fifo_rd_en <= 1;
+		end else if (mp_cmd == M_CMD_ENDSTOP_POL) begin
+			endstop_pol <= mp_creg[NENDSTOP-1:0];
+			mp_cmd_end <= 1;
+			len_fifo_rd_en <= 1;
 		end else begin
 			/*
 			 * unknwon command
 			 */
-			m_state <= M_STATE_ERROR;
+			m_state_error <= 1;
 		end
 	end else if (mp_cmd_end) begin
 		/*
@@ -227,10 +242,12 @@ always @(posedge clk) begin: main_block
 		mp_cmd_end <= 0;
 		mp_in_cmd <= 0;
 	end
-	if (m_cnt != 0)
-		m_cnt <= m_cnt - 1;
-	if (send_notify)
-		send_notify <= 0;
+
+	/* endstop triggered, stop everything */
+	if (endstop_int & endstop_mask) begin
+		motion_reset <= 0;
+		m_state_error <= 1;
+	end
 
 	/*
 	 * motion control
@@ -241,7 +258,7 @@ always @(posedge clk) begin: main_block
 		end
 		do_step[i] <= 0;
 	end
-	if (m_cnt != 0 || m_state == M_STATE_FREERUN) begin
+	if (m_cnt != 0) begin
 		for (i = 0; i < NCNTRL; i = i + 1) begin
 			m_accel[i] <= m_accel[i] + m_jerk[i];
 			m_velocity[i] <= m_velocity[i] + m_accel[i];
@@ -322,6 +339,6 @@ for (gi = 0; gi < NSTEPDIR; gi = gi + 1) begin
 end
 endgenerate
 
-assign debug = { m_state, mp_cmd, mp_in_cmd, 21'b0 };
+assign debug = { m_state_error, mp_cmd, mp_in_cmd, 22'b0 };
 
 endmodule

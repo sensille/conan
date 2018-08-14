@@ -23,8 +23,11 @@ localparam BITRATE = 400000;
 //localparam BITRATE = 9600;
 localparam BITLENGTH = 1000000000 / BITRATE;
 
+reg [7:0] endstop = 0;
+
 pfs #(
-	.BAUD(BITRATE)
+	.BAUD(BITRATE),
+	.NENDSTOP(8)
 ) u_pfs(
 	.clk_50mhz(clk_50mhz),
 
@@ -48,6 +51,7 @@ pfs #(
 	.dir(),
 	.step(),
 
+	.endstop(endstop),
 	// debug
 	.debug1(),
 	.debug2(),
@@ -94,7 +98,7 @@ endtask
 
 initial begin: B_clk
 	integer i;
-	for (i = 0; i < 1000000; i = i + 1) begin
+	for (i = 0; i < 10000000; i = i + 1) begin
 		clk_50mhz = 1;
 		#10;
 		clk_50mhz = 0;
@@ -200,6 +204,16 @@ initial begin: B_serial_data
 	send(8'hef);
 	send(8'h7e);
 	#(BITLENGTH * 10);
+	send(8'h08);
+	send(8'h69);
+	send(8'hff);
+	send(8'hd2);
+	send(8'hef);
+	send(8'h7e);
+	#(BITLENGTH * 10);
+
+	/* start motion control */
+	send2(8'h02); send2(8'h60); send2(8'h48); send2(8'h01); send2(8'h7e);
 end
 
 reg [119:0] data_out = 120'h391100006839110000683911000068;
@@ -213,6 +227,16 @@ reg [119:0] data_in = 120'h0;
 always @(posedge sck) begin
 	if (cs123 == 0) begin
 		data_in <= { data_in[118:0], sdi };
+	end
+end
+
+initial begin: B_endstop
+	integer i;
+	for (i = 0; i < 10000; i = i + 1) begin
+		endstop[0] = 1;
+		#100;
+		endstop[0] = 0;
+		#100000;
 	end
 end
 

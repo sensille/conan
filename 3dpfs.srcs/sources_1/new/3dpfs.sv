@@ -4,7 +4,8 @@
 module pfs #(
 	parameter BAUD = 9600,
 	parameter NSTEPDIR = 6,
-	parameter NCNTRL = 4
+	parameter NCNTRL = 4,
+	parameter NENDSTOP = 8
 ) (
 	input wire clk_50mhz,
 
@@ -27,6 +28,9 @@ module pfs #(
 	input wire sdo,
 	output wire [NSTEPDIR-1:0] dir,
 	output wire [NSTEPDIR-1:0] step,
+
+	// endstops
+	input wire [NENDSTOP-1:0] endstop,
 
 	// debug
 	output wire debug1,
@@ -114,7 +118,8 @@ motion #(
 	.LEN_BITS(LEN_BITS),
 	.RECV_BUF_BITS(RECV_BUF_BITS),
 	.NSTEPDIR(NSTEPDIR),
-	.NCNTRL(NCNTRL)
+	.NCNTRL(NCNTRL),
+	.NENDSTOP(NENDSTOP)
 ) u_motion (
 	.clk(clk),
 
@@ -141,6 +146,7 @@ motion #(
 	.step(step),
 
 	.running(running),
+	.endstop(endstop),
 
 	/* debug */
 	.debug(motion_debug)
@@ -201,7 +207,7 @@ control #(
 	.LEN_BITS(LEN_BITS),
 	.RECV_BUF_BITS(RECV_BUF_BITS),
 	.NGPOUT(NGPOUT),
-	.NGPIN(1)
+	.NGPIN(NENDSTOP)
 ) u_control (
 	.clk(clk),
 
@@ -224,8 +230,8 @@ control #(
 	.send_ring_wr_en(send_ring_wr_en_2),
 	.send_ring_full(send_ring_full_2),
 
-	.gpout({ gpout }),
-	.gpin( { 1'b0 }),
+	.gpout(gpout),
+	.gpin(endstop),
 	.sck(sck),
 	.cs( { cs123, cs456 } ),
 	.sdi(sdi),
@@ -256,7 +262,8 @@ assign leds[255:224] = led_cnt;
 assign leds[183:160] = { rx1, tx1, cts1, rx2, tx2, cts2, en,
 	sck, cs123, cs456, sdi, sdo, dir, step };
 assign leds[223:216] = gpout;
-assign leds[215:184] = 0;
+assign leds[191:184] = endstop;
+assign leds[215:192] = 0;
 
 led7219 led7219_u(
 	.clk(clk),
