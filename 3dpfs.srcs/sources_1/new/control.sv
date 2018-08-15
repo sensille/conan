@@ -44,6 +44,8 @@ module control #(
 
 	/* motion control start/stop */
 	output reg running = 0,
+	output reg clear_error = 0,
+	input wire request_stop,
 
 	/* debug output */
 	output wire [31:0] debug
@@ -76,6 +78,11 @@ always @(posedge clk) begin: main_block
 	integer i;
 
 	len_fifo_rd_en <= 0;
+	clear_error <= 0;
+
+	if (running && request_stop)
+		running <= 0;
+
 	if (c_len == 0 && !len_fifo_empty && !c_in_cmd) begin
 		/*
 		 * stage: read command byte
@@ -119,6 +126,7 @@ always @(posedge clk) begin: main_block
 			len_fifo_rd_en <= 1;
 		end else if (c_cmd == C_CMD_STOP) begin
 			running <= 0;
+			clear_error <= 1;
 			c_cmd_end <= 1;
 			len_fifo_rd_en <= 1;
 		end else begin

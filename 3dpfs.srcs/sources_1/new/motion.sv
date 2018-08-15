@@ -36,6 +36,8 @@ module motion #(
 
 	/* run control */
 	input wire running,
+	input wire clear_error,
+	output reg request_stop = 0,
 
 	/* endstop sensors */
 	input wire [NENDSTOP-1:0] endstop,
@@ -96,11 +98,12 @@ localparam P_STATE_BUILD_VAL = 1;
  * command definitions
  */
 localparam M_CMD_RESET      = 8'h40;
+localparam M_CMD_STOP       = 8'h41;
 localparam M_CMD_SET_ROUTING= 8'h60;
 localparam M_CMD_NOTIFY     = 8'h61;
 localparam M_CMD_WAIT_IDLE  = 8'h68;
-localparam M_CMD_WAIT_EVENT = 8'h69;
-localparam M_CMD_ENDSTOP_MASK= 8'h6a;
+localparam M_CMD_SET_EVENT  = 8'h69;
+localparam M_CMD_ENDSTOP_MASK=8'h6a;
 localparam M_CMD_ENDSTOP_POL= 8'h6b;
 localparam M_CMD_LOADALLREG = 8'h70;
 localparam M_CMD_LOADCNT    = 8'h71;
@@ -123,15 +126,30 @@ reg motion_reset = 0;
 reg [NENDSTOP-1:0] endstop_mask = 0;
 reg [NENDSTOP-1:0] endstop_pol = 0;
 wire [NENDSTOP-1:0] endstop_int = endstop ^ endstop_pol;
+reg [NENDSTOP-1:0] m_wait_mask = 0;
 
 always @(posedge clk) begin: main_block
 	integer i;
 
+	request_stop <= 0;
 	len_fifo_rd_en <= 0;
 	if (m_cnt != 0)
 		m_cnt <= m_cnt - 1;
+	else if (running && !request_stop)
+		/* underrun, overridden by load if in same cycle */
+		m_state_error <= 1;
+
 	if (send_notify)
 		send_notify <= 0;
+
+	if (clear_error && m_state_error) begin
+		m_state_error <= 0;
+		motion_reset <= 1;
+		mp_cmd_end <= 0;
+		mp_in_cmd <= 0;
+		recv_rptr <= 0;
+		m_wait_mask <= 0;
+	end
 
 	if (m_state_error) begin
 		/*
@@ -177,13 +195,15 @@ always @(posedge clk) begin: main_block
 			if (!running) begin
 				/* wait for running before loading cnt */
 				i_want_an_empty_block <= 0;
-			end else if (m_cnt != 0) begin
+			end else if (m_cnt != 0 &&
+			    (m_wait_mask & endstop_int) == 0) begin
 				/*
 				 * current motion still running, wait for it
-				 * to finish before loading cnt
+				 * to finish or an event to occur before
+				 * loading cnt
 				 */
 				i_want_an_empty_block <= 0;
-			end else if (!m_state_error) begin
+			end else begin
 				/*
 				 * load staged registers + cnt
 				 */
@@ -193,6 +213,8 @@ always @(posedge clk) begin: main_block
 				end;
 				mp_cmd_end <= 1;
 				len_fifo_rd_en <= 1;
+				m_state_error <= 0;
+				m_wait_mask <= 0;
 			end
 		end else if (mp_cmd == M_CMD_SET_ROUTING) begin
 			stepdir_routing[mp_creg[NSTEPDIR_BITS-1+8:8]] <=
@@ -213,19 +235,20 @@ always @(posedge clk) begin: main_block
 				mp_cmd_end <= 1;
 				len_fifo_rd_en <= 1;
 			end
-		end else if (mp_cmd == M_CMD_WAIT_EVENT) begin
-			if ((endstop_int & mp_creg[NENDSTOP-1:0]) ||
-			     m_cnt == 0) begin
-				m_cnt <= 0;	/* stop running cnt */
-				mp_cmd_end <= 1;
-				len_fifo_rd_en <= 1;
-			end
+		end else if (mp_cmd == M_CMD_SET_EVENT) begin
+			m_wait_mask <= mp_creg[NENDSTOP-1:0];
+			mp_cmd_end <= 1;
+			len_fifo_rd_en <= 1;
 		end else if (mp_cmd == M_CMD_ENDSTOP_MASK) begin
 			endstop_mask <= mp_creg[NENDSTOP-1:0];
 			mp_cmd_end <= 1;
 			len_fifo_rd_en <= 1;
 		end else if (mp_cmd == M_CMD_ENDSTOP_POL) begin
 			endstop_pol <= mp_creg[NENDSTOP-1:0];
+			mp_cmd_end <= 1;
+			len_fifo_rd_en <= 1;
+		end else if (mp_cmd == M_CMD_STOP) begin
+			request_stop <= 1;
 			mp_cmd_end <= 1;
 			len_fifo_rd_en <= 1;
 		end else begin
@@ -339,6 +362,6 @@ for (gi = 0; gi < NSTEPDIR; gi = gi + 1) begin
 end
 endgenerate
 
-assign debug = { m_state_error, mp_cmd, mp_in_cmd, 22'b0 };
+assign debug = { mp_cmd, mp_in_cmd, running, m_state_error, 21'b0 };
 
 endmodule

@@ -36,7 +36,10 @@ module framing #(
 	/* ring buffer input */
 	input wire [7:0] send_ring_data,
 	input wire send_ring_wr_en,
-	output wire send_ring_full
+	output wire send_ring_full,
+
+	/* reset */
+	input wire clr
 );
 
 localparam RING_SIZE = 1 << RING_BITS;
@@ -121,7 +124,7 @@ fifo #(
 	.ADDR_WIDTH(LEN_FIFO_BITS)
 ) recv_len_fifo (
 	.clk(clk),
-	.clr(1'b0),
+	.clr(clr),
 
 	// write side
 	.din(recv_len_wr_data),
@@ -245,6 +248,10 @@ always @(posedge clk) begin
 		recv_ack_sent <= 0;
 		recv_send_ack <= 0;
 	end
+
+	/* reset */
+	if (clr)
+		recv_wptr <= 0;
 end
 
 /*

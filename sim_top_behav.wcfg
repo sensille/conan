@@ -11,15 +11,15 @@
       </db_ref>
    </db_ref_list>
    <zoom_setting>
-      <ZoomStartTime time="1047309937604fs"></ZoomStartTime>
-      <ZoomEndTime time="1049200462480fs"></ZoomEndTime>
-      <Cursor1Time time="1048885375000fs"></Cursor1Time>
+      <ZoomStartTime time="0fs"></ZoomStartTime>
+      <ZoomEndTime time="554173759fs"></ZoomEndTime>
+      <Cursor1Time time="604067500000fs"></Cursor1Time>
    </zoom_setting>
    <column_width_setting>
       <NameColumnWidth column_width="235"></NameColumnWidth>
-      <ValueColumnWidth column_width="290"></ValueColumnWidth>
+      <ValueColumnWidth column_width="286"></ValueColumnWidth>
    </column_width_setting>
-   <WVObjectSize size="93" />
+   <WVObjectSize size="94" />
    <wvobject fp_name="/sim_top/u_pfs/clk_50mhz" type="logic">
       <obj_property name="ElementShortName">clk_50mhz</obj_property>
       <obj_property name="ObjectShortName">clk_50mhz</obj_property>
@@ -391,5 +391,9 @@
    <wvobject fp_name="/sim_top/endstop" type="array">
       <obj_property name="ElementShortName">endstop[7:0]</obj_property>
       <obj_property name="ObjectShortName">endstop[7:0]</obj_property>
+   </wvobject>
+   <wvobject fp_name="/sim_top/u_pfs/u_motion/m_state_error" type="logic">
+      <obj_property name="ElementShortName">m_state_error</obj_property>
+      <obj_property name="ObjectShortName">m_state_error</obj_property>
    </wvobject>
 </wave_config>

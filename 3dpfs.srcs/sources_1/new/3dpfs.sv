@@ -109,11 +109,15 @@ framing #(
 	/* send ring */
 	.send_ring_data(send_ring_data_1),
 	.send_ring_wr_en(send_ring_wr_en_1),
-	.send_ring_full(send_ring_full_1)
+	.send_ring_full(send_ring_full_1),
+
+	.clr(clear_error)
 );
 
 wire [31:0] motion_debug;
 wire running;
+wire clear_error;
+wire request_stop;
 motion #(
 	.LEN_BITS(LEN_BITS),
 	.RECV_BUF_BITS(RECV_BUF_BITS),
@@ -146,6 +150,8 @@ motion #(
 	.step(step),
 
 	.running(running),
+	.clear_error(clear_error),
+	.request_stop(request_stop),
 	.endstop(endstop),
 
 	/* debug */
@@ -238,6 +244,8 @@ control #(
 	.sdo(sdo),
 
 	.running(running),
+	.request_stop(request_stop),
+	.clear_error(clear_error),
 
 	/* debug */
 	.debug(control_debug)
