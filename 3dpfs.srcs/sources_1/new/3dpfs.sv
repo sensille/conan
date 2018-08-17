@@ -2,7 +2,7 @@
 `default_nettype none
 
 module pfs #(
-	parameter BAUD = 9600,
+	parameter BAUD = 115200,
 	parameter NSTEPDIR = 6,
 	parameter NCNTRL = 4,
 	parameter NENDSTOP = 8
