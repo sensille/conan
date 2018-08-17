@@ -1,0 +1,198 @@
+#ifndef __TMC2130__
+#define __TMC2130__
+
+/*
+ * status flag returned with each read as bits 39-32
+ */
+#define TMC_STATUS_STANDSTILL	0x08	/* 1: Signals motor standstill */
+#define TMC_STATUS_SG2		0x04	/* 1: Signals stallguard flag active */
+#define TMC_STATUS_DRIVER_ERROR	0x02	/* 1: Signals driver 1 driver error (clear by reading GSTAT) */
+#define TMC_STATUS_RESET_FLAG	0x01	/* 1: Signals that a reset has occured (clear by reading GSTAT) */
+
+/*
+ * set highest bit in register address to enable write
+ */
+#define TMC_WRITE		0x80
+
+/*
+ * Register Addresses
+ */
+
+/* General Configuration Registers */
+#define TMCR_GCONF		0x00
+#define TMCR_GSTAT		0x01
+#define TMCR_IOIN		0x04
+/* Velocity Dependent Driver Feature Control Register Set */
+#define TMCR_IHOLD_IRUN		0x10
+#define TMCR_TPOWER_DOWN	0x11
+#define TMCR_TSTEP		0x12
+#define TMCR_TPWMTHRS		0x13
+#define TMCR_TCOOLTHRS		0x14
+#define TMCR_THIGH		0x15
+#define TMCR_XDIRECT		0x2d
+/* SPI Mode Register*/
+#define TMCR_XDIRECT		0x2d
+/* dcStep Minimum Velocity Register */
+#define TMCR_VDCMIN		0x33
+/* Motor Driver Registers */
+#define TMCR_MSLUT_BASE		0x60	/* 8 registers, 0x60-0x67 */
+#define TMCR_MSLUTSEL		0x68
+#define TMCR_MSLUTSTART		0x69
+#define TMCR_MSCNT		0x6a
+#define TMCR_MSCURACT		0x6b
+#define TMCR_CHOPCONF		0x6c
+#define TMCR_COOLCOINF		0x6d
+#define TMCR_DCCTRL		0x6e
+#define TMCR_DRV_STATUS		0x6f
+#define TMCR_PWMCONF		0x70
+#define TMCR_SCALE		0x71
+#define TMCR_ENCM_CTRL		0x72
+#define TMCR_LOST_STEPS		0x73
+
+/*
+ * Register bit definitions
+ */
+
+/* GCONF */
+#define TMC_GCONF_I_SCALE_ANALOG	0x00000001
+#define TMC_GCONF_INTERNAL_RSENSE	0x00000002
+#define TMC_GCONF_EN_PWM_MODE		0x00000004
+#define TMC_GCONF_ENC_COMMUTATION	0x00000008
+#define TMC_GCONF_SHAFT			0x00000010
+#define TMC_GCONF_DIAG0_ERROR		0x00000020
+#define TMC_GCONF_DIAG0_OTPW		0x00000040
+#define TMC_GCONF_DIAG0_STALL		0x00000080
+#define TMC_GCONF_DIAG1_STALL		0x00000100
+#define TMC_GCONF_DIAG1_INDEX		0x00000200
+#define TMC_GCONF_DIAG1_ONSTATE		0x00000400
+#define TMC_GCONF_DIAG1_STEPS_SKIPPED	0x00000800
+#define TMC_GCONF_DIAG0_INT_PUSHPULL	0x00001000
+#define TMC_GCONF_DIAG1_PUSHPULL	0x00002000
+#define TMC_GCONF_SMALL_HYSTERESIS	0x00004000
+#define TMC_GCONF_STOP_ENABLE		0x00008000
+#define TMC_GCONF_DIRECT_MODE		0x00010000
+#define TMC_GCONF_TEST_MODE		0x00020000
+
+/* GSTAT */
+#define TMC_GSTAT_RESET			0x01
+#define TMC_GSTAT_DRV_ERR		0x02
+#define TMC_GSTAT_UV_CP			0x04
+
+/* IOIN (read state of all input pins available, read version) */
+#define TMC_IOIN_STEP			0x01
+#define TMC_IOIN_DIR			0x02
+#define TMC_IOIN_DCEN_CFG4		0x04
+#define TMC_IOIN_DCEN_CFG5		0x08
+#define TMC_IOIN_DRV_ENN_CFG6		0x10
+#define TMC_IOIN_VERSION_SHIFT		24
+#define TMC_IOIN_VERSION_MASK		0xff
+
+/* IHOLD_IRUN */
+#define TMC_IHOLD_IRUN_IHOLD_SHIFT	0
+#define TMC_IHOLD_IRUN_IHOLD_MASK	0x1f
+#define TMC_IHOLD_IRUN_IRUN_SHIFT	8
+#define TMC_IHOLD_IRUN_IRUN_MASK	0x1f
+#define TMC_IHOLD_IRUN_IHOLDDELAY_SHIFT	16
+#define TMC_IHOLD_IRUN_IHOLDDELAY_MASK	0x0f
+
+/* XDIRECT */
+#define TMC_XDIRECT_COIL_A_SHIFT	0
+#define TMC_XDIRECT_COIL_A_MASK		0x1ff
+#define TMC_XDIRECT_COIL_B_SHIFT	16
+#define TMC_XDIRECT_COIL_B_MASK		0x1ff
+
+/* MSLUTSEL */
+#define TMC_MSLUTSEL_W0_SHIFT		0
+#define TMC_MSLUTSEL_W0_MASK		0x03
+#define TMC_MSLUTSEL_W1_SHIFT		2
+#define TMC_MSLUTSEL_W1_MASK		0x03
+#define TMC_MSLUTSEL_W2_SHIFT		4
+#define TMC_MSLUTSEL_W2_MASK		0x03
+#define TMC_MSLUTSEL_W3_SHIFT		6
+#define TMC_MSLUTSEL_W3_MASK		0x03
+#define TMC_MSLUTSEL_X1_SHIFT		8
+#define TMC_MSLUTSEL_X1_MASK		0xff
+#define TMC_MSLUTSEL_X2_SHIFT		16
+#define TMC_MSLUTSEL_X2_MASK		0xff
+#define TMC_MSLUTSEL_X3_SHIFT		24
+#define TMC_MSLUTSEL_X3_MASK		0xff
+
+/* CHOPCONF */
+#define TMC_CHOPCONF_DISS2G		(1 << 30)
+#define TMC_CHOPCONF_DEDGE		(1 << 29)
+#define TMC_CHOPCONF_INTPOL		(1 << 28)
+#define TMC_CHOPCONF_MRES_SHIFT		24
+#define TMC_CHOPCONF_MRES_MASK		0x0f
+#define TMC_CHOPCONF_SYNC_SHIFT		20
+#define TMC_CHOPCONF_SYNC_MASK		0x0f
+#define TMC_CHOPCONF_VHIGHCHM		(1 << 19)
+#define TMC_CHOPCONF_VHIGHFS		(1 << 18)
+#define TMC_CHOPCONF_VSENSE		(1 << 17)
+#define TMC_CHOPCONF_TBL_SHIFT		15
+#define TMC_CHOPCONF_TBL_MASK		0x03
+#define TMC_CHOPCONF_CHM		(1 << 14)
+#define TMC_CHOPCONF_RNDTF		(1 << 13)
+#define TMC_CHOPCONF_DISFDCC		(1 << 12)
+#define TMC_CHOPCONF_TFD3		(1 << 11)
+#define TMC_CHOPCONF_HEND_SHIFT		7
+#define TMC_CHOPCONF_HEND_MASK		0x0f
+#define TMC_CHOPCONF_HSTRT_SHIFT	4
+#define TMC_CHOPCONF_HSTRT_MASK		0x07
+#define TMC_CHOPCONF_TFD2		(1 << 6)
+#define TMC_CHOPCONF_TFD1		(1 << 5)
+#define TMC_CHOPCONF_TFD0		(1 << 4)
+#define TMC_CHOPCONF_TOFF_SHIFT		0
+#define TMC_CHOPCONF_TOFF_MASK		0x0f
+
+/* COOLCONF */
+#define TMC_COOLCONF_SFILT		(1 << 24)
+#define TMC_COOLCONF_SGT_SHIFT		16
+#define TMC_COOLCONF_SGT_MASK		0x7f
+#define TMC_COOLCONF_SEIMIN		(1 << 15)
+#define TMC_COOLCONF_SEDN_SHIFT		13
+#define TMC_COOLCONF_SEDN_MASK		0x03
+#define TMC_COOLCONF_SEMAX_SHIFT	8
+#define TMC_COOLCONF_SEMAX_MASK		0x0f
+#define TMC_COOLCONF_SEUP_SHIFT		5
+#define TMC_COOLCONF_SEUP_MASK		0x03
+#define TMC_COOLCONF_SEMIN_SHIFT	0
+#define TMC_COOLCONF_SEMIN_MASK		0x0f
+
+/* DCCTRL */
+#define TMC_DCCTRL_DC_TIME_SHIFT	0
+#define TMC_DCCTRL_DC_TIME_MASK		0x3ff
+#define TMC_DCCTRL_DC_SG_SHIFT		16
+#define TMC_DCCTRL_DC_SG_MASK		0xff
+
+/* DRV_STATUS */
+#define TMC_DRV_STATUS_STST		(1 << 31)
+#define TMC_DRV_STATUS_OLB		(1 << 30)
+#define TMC_DRV_STATUS_OLA		(1 << 29)
+#define TMC_DRV_STATUS_S2GB		(1 << 28)
+#define TMC_DRV_STATUS_S2GA		(1 << 27)
+#define TMC_DRV_STATUS_OTPW		(1 << 26)
+#define TMC_DRV_STATUS_OT		(1 << 25)
+#define TMC_DRV_STATUS_STALLGUARD	(1 << 24)
+#define TMC_DRV_STATUS_CS_ACTUAL_SHIFT	16
+#define TMC_DRV_STATUS_CS_ACTUAL_MASK	0x1f
+#define TMC_DRV_STATUS_FSACTIVE		(1 << 15)
+#define TMC_DRV_STATUS_SG_RESULT_SHIFT	0
+#define TMC_DRV_STATUS_SG_RESULT_MASK	0x3ff
+
+/* PWMCONF */
+#define TMC_PWMCONF_FREEWHEEL_SHIFT	20
+#define TMC_PWMCONF_FREEWHEEL_MASK	0x03
+#define TMC_PWMCONF_PWM_SYMMETRIC	(1 << 19)
+#define TMC_PWMCONF_PWM_AUTOSCALE	(1 << 18)
+#define TMC_PWMCONF_PWM_FREQ_SHIFT	16
+#define TMC_PWMCONF_PWM_FREQ_MASK	0x03
+#define TMC_PWMCONF_PWM_GRAD_SHIFT	8
+#define TMC_PWMCONF_PWM_GRAD_MASK	0xff
+#define TMC_PWMCONF_PWM_AMPL_SHIFT	0
+#define TMC_PWMCONF_PWM_AMPL_MASK	0xff
+
+/* ENC_CTRL */
+#define TMC_ENC_CTRL_INV		0x01
+#define TMC_ENC_CTRL_MAXSPEED		0x02
+
+#endif
