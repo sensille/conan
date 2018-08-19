@@ -117,7 +117,7 @@ reg recv_len_wr_en = 0;
 
 wire recv_len_fifo_full;
 
-assign cts = (recv_rptr == recv_wptr + 1) || recv_len_fifo_full;
+assign cts = (recv_rptr == recv_wptr + 1'b1) || recv_len_fifo_full;
 
 fifo #(
 	.DATA_WIDTH(LEN_BITS),
@@ -167,7 +167,7 @@ always @(posedge clk) begin
 				recv_wptr <= recv_wptr_fallback;
 				recv_error_state <= RECV_ERROR_BAD_CRC;
 			end else if (recv_seq[7] == 0 &&
-			             recv_seq[6:0] != recv_last_seq + 1) begin
+			            recv_seq[6:0] != recv_last_seq + 1'b1) begin
 				recv_wptr <= recv_wptr_fallback;
 				recv_error_state <= RECV_ERROR_BAD_SEQ;
 			end else begin
@@ -201,9 +201,9 @@ always @(posedge clk) begin
 				recv_seq <= recv_prev2;
 			end
 			if (recv_len_pre3) begin
-				recv_wptr <= recv_wptr + 1;
+				recv_wptr <= recv_wptr + 1'b1;
 				recv_ring[recv_wptr] <= recv_prev2;
-				recv_len <= recv_len + 1;
+				recv_len <= recv_len + 1'b1;
 			end
 			if (recv_len_pre2) begin
 				crc16_in <= recv_prev2;
@@ -216,7 +216,7 @@ always @(posedge clk) begin
 		crc16[15] <= crc16_in[0] ^ crc16[0];
 		crc16[13] <= crc16[14] ^ crc16_in[0] ^ crc16[0];
 		crc16[0] <= crc16[1] ^ crc16_in[0] ^ crc16[0];
-		crc16_cnt <= crc16_cnt - 1;
+		crc16_cnt <= crc16_cnt - 1'b1;
 		crc16_in <= { 1'b0, crc16_in[7:1] };
 	end
 
@@ -302,12 +302,12 @@ reg [7:0] send_ring [RING_SIZE-1:0];
 reg [RING_BITS-1:0] send_rptr = 0;
 reg [RING_BITS-1:0] send_wptr = 0;
 reg [LEN_BITS-1:0] send_len = 0;
-assign send_ring_full = (send_wptr + 1) == send_rptr;
+assign send_ring_full = (send_wptr + 1'b1) == send_rptr;
 
 always @(posedge clk) begin
 	if (send_ring_wr_en && !send_ring_full) begin
 		send_ring[send_wptr] <= send_ring_data;
-		send_wptr <= send_wptr + 1;
+		send_wptr <= send_wptr + 1'b1;
 	end
 end
 
@@ -325,7 +325,7 @@ always @(posedge clk) begin
 			send_crc16[0];
 		send_crc16[0] <= send_crc16[1] ^ send_crc16_in[0] ^
 			send_crc16[0];
-		send_crc16_cnt <= send_crc16_cnt - 1;
+		send_crc16_cnt <= send_crc16_cnt - 1'b1;
 		send_crc16_in <= { 1'b0, send_crc16_in[7:1] };
 	end
 	if (do_send && !tx_transmitting && !tx_en) begin
@@ -366,8 +366,8 @@ always @(posedge clk) begin
 		if (send_len != 0) begin
 			send_byte <= send_ring[send_rptr];
 			send_crc16_in <= send_ring[send_rptr];
-			send_rptr <= send_rptr + 1;
-			send_len <= send_len - 1;
+			send_rptr <= send_rptr + 1'b1;
+			send_len <= send_len - 1'b1;
 			do_send <= 1;
 			send_crc16_cnt <= 8;
 		end else begin
