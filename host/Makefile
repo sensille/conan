@@ -1,9 +1,9 @@
 all: serial
 
-SRC = serial.c crc16.c
-HDR = checksum.h
+SRC = serial.c crc16.c main.c
+HDR = checksum.h serial.h
 serial: $(SRC) $(HDR)
-	gcc -g -Wall $(SRC) -o serial
+	gcc -g -Wall $(SRC) -lm -o serial
 
 clean:
 	rm serial

@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <termios.h>
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -10,13 +9,9 @@
 
 #include "checksum.h"
 #include "tmc2130.h"
+#include "serial.h"
 
-typedef struct _comm {
-	int	cm_fd;
-	int	cm_timeout;
-	uint8_t	cm_seq;
-	uint8_t cm_recv_seq;
-} comm_t;
+#undef SERIAL_DEBUG
 
 int
 open_terminal(const char *name, speed_t baud, int timeout, comm_t *cp)
@@ -59,7 +54,7 @@ bytes(void *data, int len)
 	return outbuf;
 }
 
-int
+static int
 escape_byte(unsigned char b, unsigned char *buf)
 {
 	if (b == 0x7d || b == 0x7e) {
@@ -70,7 +65,7 @@ escape_byte(unsigned char b, unsigned char *buf)
 	buf[0] = b;
 	return 1;
 }
-int
+static int
 send_frame(comm_t *cm, unsigned char *data, int datalen)
 {
 	unsigned char *src = data;
@@ -94,11 +89,13 @@ send_frame(comm_t *cm, unsigned char *data, int datalen)
 	p += escape_byte(crc & 0xff, p);
 	*p++ = 0x7e;
 
+#ifdef SERIAL_DEBUG
 printf("send %s\n", bytes(buf, p - buf));
+#endif
 	return write(cm->cm_fd, buf, p - buf);
 }
 
-int
+static int
 read_all(comm_t *cm, unsigned char *buf, int *len, int maxlen)
 {
 	int ret;
@@ -109,7 +106,9 @@ read_all(comm_t *cm, unsigned char *buf, int *len, int maxlen)
 
 	pfd.fd = cm->cm_fd;
 	pfd.events = POLLIN;
+#ifdef SERIAL_DEBUG
 printf("read");
+#endif
 	while (1) {
 		ret = poll(&pfd, 1, cm->cm_timeout);
 		if (ret == 0)
@@ -130,15 +129,21 @@ printf("poll timed out, len %d\n", *len);
 				strerror(errno));
 			exit(1);
 		}
+#ifdef SERIAL_DEBUG
 		printf(" %02x", c);
+#endif
 		if (c == 0x7e) {
+#ifdef SERIAL_DEBUG
 			printf("\n");
+#endif
 			return 1;
 		}
 		*buf++ = c;
 		++*len;
 		if (*len == maxlen) {
+#ifdef SERIAL_DEBUG
 			printf("\n");
+#endif
 			return 0;
 		}
 	}
@@ -158,7 +163,7 @@ read_frame(comm_t *cm, unsigned char *outbuf, int *outlen, int maxlen)
 	int i;
 
 	while (1) {
-		ret = read_all(cm, recvbuf, &recvlen, maxlen * 2 + 2);
+		ret = read_all(cm, recvbuf, &recvlen, sizeof(recvbuf));
 		if (ret == -1)	/* timeout */
 			return -1;
 		if (ret == 0) {	/* max len reached */
@@ -223,7 +228,7 @@ next_packet:;
 	}
 }
 
-void
+static void
 check(comm_t *cm, void *in, int inlen, void *exp, int explen)
 {
 	int ret;
@@ -238,7 +243,9 @@ check(comm_t *cm, void *in, int inlen, void *exp, int explen)
 		exit(1);
 	}
 	ret = read_all(cm, read_buf, &len_out, explen);
+#ifdef SERIAL_DEBUG
 	printf("received %s\n", bytes(read_buf, len_out));
+#endif
 	if (ret < 0) {
 		printf("read_all failed\n");
 		exit(1);
@@ -254,18 +261,22 @@ sendrecv(comm_t *cm, void *in, int inlen, void *out, int *outlen, int maxout)
 {
 	int ret;
 
+#ifdef SERIAL_DEBUG
 	printf("send %s ", bytes(in, inlen));
+#endif
 	ret = send_frame(cm, in, inlen);
 	if (ret < 0) {
 		printf("sending data failed: %d=%s\n", errno, strerror(errno));
 		exit(1);
 	}
 	ret = read_frame(cm, out, outlen, maxout);
-	printf("received %s\n", bytes(out, *outlen));
 	if (ret < 0) {
 		printf("read_frame failed\n");
 		exit(1);
 	}
+#ifdef SERIAL_DEBUG
+	printf("received %s\n", bytes(out, *outlen));
+#endif
 	return 0;
 }
 
@@ -275,7 +286,7 @@ sendrecv(comm_t *cm, void *in, int inlen, void *out, int *outlen, int maxout)
 void
 send0(comm_t *cm, void *in, int inlen)
 {
-	unsigned char recv_buf[1];
+	unsigned char recv_buf[3];
 	int recv_len;
 
 	sendrecv(cm, in, inlen, recv_buf, &recv_len, sizeof(recv_buf));
@@ -288,6 +299,7 @@ resync(comm_t *cm)
 	int ret;
 	uint8_t recvbuf[100];
 	int recvlen;
+	int oto = cm->cm_timeout;
 
 	/* terminate eventually running frame */
 	ret = write(cm->cm_fd, "\x7e", 1);
@@ -298,10 +310,12 @@ resync(comm_t *cm)
 
 	/* read all pending data */
 	while (1) {
+		cm->cm_timeout = 100;
 		ret = read_all(cm, recvbuf, &recvlen, sizeof(recvbuf));
 		if (ret == -1)	/* timeout */
 			break;
 	}
+	cm->cm_timeout = oto;
 	cm->cm_seq = 0x80;
 	send0(cm, "", 0);
 	cm->cm_seq = 0x01;
@@ -417,13 +431,14 @@ test(comm_t *cm)
 	check(cm, "\x02zfddffddffdd", 13, "\x00\x02", 2);
 }
 
-void
+int
 print_status(comm_t *cm)
 {
 	uint8_t s[6];	/* STATUS */
 	uint32_t v[6];	/* DRV_STATUS */
 	uint32_t g[6];	/* GSTAT */
 	int i;
+	int res;
 
 	spi_read(cm, 0, 0x6f, &s[0], &v[0], &s[1], &v[1], &s[2], &v[2]);
 	spi_read(cm, 1, 0x6f, &s[3], &v[3], &s[4], &v[4], &s[5], &v[5]);
@@ -434,184 +449,14 @@ print_status(comm_t *cm)
 	for (i = 0; i < 6; ++i)
 		printf(" %02x:%08x-%x", s[i], v[i], g[i]);
 	printf("\n");
+
+	res = 0;
+	for (i = 0; i < 3; ++i) {
+		if ((s[i] & 0x02) != 0) {
+			printf("driver %d not ok\n", i);
+			res = 1;
+		}
+	}
+
+	return res;
 }
-
-int
-main(int argc, char **argv)
-{
-	int ret;
-	comm_t cc;	/* control connection */
-	comm_t cd;	/* data connection */
-
-	ret = open_terminal("/dev/ttyS1", B115200, 100, &cd);
-	if (ret < 0) {
-		printf("failed to open serial port S1: %s\n", strerror(errno));
-		exit(1);
-	}
-	ret = open_terminal("/dev/ttyS2", B115200, 100, &cc);
-	if (ret < 0) {
-		printf("failed to open serial port S2: %s\n", strerror(errno));
-		exit(1);
-	}
-
-#if 0
-	test(fd);
-#endif
-
-#if 0
-	for (int i = 0; i < 10000; ++i) {
-		printf("sending block %d\n", i);
-		int ret = send_frame(fd, "\x80\x01\x00\x00\x00", 5);
-		if (ret < 0) {
-			printf("sending data failed: %d=%s\n", errno,
-				strerror(errno));
-			exit(1);
-		}
-	}
-#endif
-
-printf("control channel\n");
-	resync(&cc);
-
-	/* read tmc2130 versions */
-	uint32_t v[6];
-	int i;
-	spi_read(&cc, 0, 0x04, NULL, &v[0], NULL, &v[1], NULL, &v[2]);
-	spi_read(&cc, 1, 0x04, NULL, &v[3], NULL, &v[4], NULL, &v[5]);
-
-	for (i = 0; i < 6; ++i)
-		v[i] >>= 24;
-
-	printf("versions:");
-	for (i = 0; i < 6; ++i)
-		printf(" %02x", v[i]);
-	printf("\n");
-
-	for (i = 0; i < 6; ++i) {
-		if (v[i] != 0x11) {
-			printf("at least one version is bad\n");
-			exit(1);
-		}
-	}
-
-#if 0
-	/* disable all drivers upfront */
-	tmcw(&cc, 0x3f, TMCR_GCONF, TMC_GCONF_STOP_ENABLE);
-#endif
-
-	int cmask = 0x3f;
-	/* configuration without StealthChop */
-	tmcw(&cc, cmask, TMCR_CHOPCONF,
-		TMC_CHOPCONF_DEDGE |
-		(2 << TMC_CHOPCONF_TBL_SHIFT) |
-		(7 << TMC_CHOPCONF_HEND_SHIFT) |
-		(2 << TMC_CHOPCONF_HSTRT_SHIFT) |
-		(5 << TMC_CHOPCONF_TOFF_SHIFT));
-	tmcw(&cc, cmask, TMCR_IHOLD_IRUN,
-		( 6 << TMC_IHOLD_IRUN_IHOLDDELAY_SHIFT) |
-#if 0
-		(24 << TMC_IHOLD_IRUN_IRUN_SHIFT) |
-#else
-		(10 << TMC_IHOLD_IRUN_IRUN_SHIFT) |	/* XXX differ for E */
-#endif
-		( 3 << TMC_IHOLD_IRUN_IHOLD_SHIFT));
-	tmcw(&cc, cmask, TMCR_TPOWER_DOWN, 0x0a);
-	tmcw(&cc, cmask, TMCR_GCONF,
-		TMC_GCONF_DIAG0_INT_PUSHPULL |
-		TMC_GCONF_DIAG1_PUSHPULL |
-		TMC_GCONF_DIAG1_STALL |
-		TMC_GCONF_DIAG0_OTPW
-#if 1
-		| TMC_GCONF_EN_PWM_MODE
-#endif
-	);
-	tmcw(&cc, cmask, TMCR_TPWMTHRS, 0);
-	tmcw(&cc, cmask, TMCR_PWMCONF,
-		TMC_PWMCONF_PWM_AUTOSCALE |
-		(  1 << TMC_PWMCONF_PWM_GRAD_SHIFT) |
-		(200 << TMC_PWMCONF_PWM_AMPL_SHIFT));
-
-	/* enable, GPOUT 0 to Lo */
-	send0(&cc, "\x71\x00", 2);
-
-	/* stop motion controller */
-	send0(&cc, "\x61", 1);
-
-printf("data channel\n");
-	resync(&cd);
-	/* reset motion controller */
-	send0(&cd, "\x40", 1);
-	/* routing: controller 1 to outputs 0, 1, 2 */
-#if 0
-	send0(&cd, "\x60\x00\x01", 3);
-	send0(&cd, "\x60\x01\x01", 3);
-	send0(&cd, "\x60\x02\x01", 3);
-	send0(&cd, "\x60\x03\x01", 3);
-	send0(&cd, "\x60\x04\x01", 3);
-	send0(&cd, "\x60\x05\x01", 3);
-#else
-	send0(&cd, "\x60\x01\x01", 3);
-#endif
-
-	send0(&cd, "\x6a\x00", 2);	/* endstop mask */
-	send0(&cd, "\x6b\x00", 2);	/* endstop polarity */
-
-	/* notify */
-	send0(&cd, "\x61\x55\xaa", 3);
-
-	/* positive jerk */
-	send0(&cd, "\x80\x55\xaa\x00", 4);
-	send0(&cd, "\x71\x02\x00\x00", 4);
-
-	/* negative jerk */
-	send0(&cd, "\x80\xaa\x55\x01", 4);
-	send0(&cd, "\x71\x02\x00\x00", 4);
-
-	/* constant velocity */
-	send0(&cd, "\x80\x00", 1);
-	send0(&cd, "\x71\x08\x00\x00\x00", 5);
-
-#if 1
-	/*
-	 * set wait mask so the currently running command can be interrupted
-	 * by an endstop
-	 */
-	send0(&cd, "\x69\x01", 2); 
-#endif
-
-	/* negative jerk */
-	send0(&cd, "\x80\xaa\x55\x01", 4);
-	send0(&cd, "\x71\x02\x00\x00", 4);
-
-	/* positive jerk again */
-	send0(&cd, "\x80\x55\xaa\x00", 4);
-	send0(&cd, "\x71\x02\x00\x00", 4);
-
-	/* notify */
-	send0(&cd, "\x61\x7a\xbb", 3);
-	/* stop */
-	send0(&cd, "\x41", 1);
-
-	/* start motion controller */
-	send0(&cc, "\x60", 1);
-
-	/* wait for notifications */
-	while (1) {
-		print_status(&cc);
-
-		unsigned char recv_buf[20];
-		int recv_len = 0;
-		ret = read_frame(&cd, recv_buf, &recv_len, sizeof(recv_buf));
-		if (ret == 0) {
-			printf("received %s\n", bytes(recv_buf, recv_len));
-			if (recv_len == 4 &&
-			    memcmp(recv_buf, "\x00\x00\x7a\xbb", 4) == 0)
-				break;
-		}
-	}
-	sleep(1);
-	send0(&cc, "\x70\x00", 2);
-
-	return 0;
-}
-
