@@ -70,7 +70,7 @@ BUFH feedback_buffer(
 	.I(clk_feedback),
 	.O(clk_feedback_bufd)
 );
-BUFH clk_out_buf(
+BUFG clk_out_buf(
 	.I(clk_buf),
 	.O(clk)
 );

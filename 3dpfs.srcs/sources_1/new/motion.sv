@@ -4,7 +4,8 @@
 module motion #(
 	parameter LEN_BITS = 8,
 	parameter RECV_BUF_BITS = 10,
-	parameter REGBITS = 64,
+	parameter REGBITS = 208,
+	parameter CNTBITS = 48,
 	parameter NCNTRL = 4,
 	parameter NSTEPDIR = 6,
 	parameter NENDSTOP = 2
@@ -66,13 +67,17 @@ end
 /*
  * Preload registers for motion stage
  */
-reg [REGBITS-1:0] m_preload_reg [NCNTRL-1:0];
+reg [REGBITS-1:0] m_preload_jerk [NCNTRL-1:0];
+reg [REGBITS-1:0] m_preload_snap [NCNTRL-1:0];
+reg [REGBITS-1:0] m_preload_crackle [NCNTRL-1:0];
 
 /*
  * motion state machine
  */
 reg m_state_error = 0;
-reg [REGBITS-1:0] m_cnt = 0;
+reg [CNTBITS-1:0] m_cnt = 0;
+reg [REGBITS-1:0] m_crackle [NCNTRL-1:0];
+reg [REGBITS-1:0] m_snap [NCNTRL-1:0];
 reg [REGBITS-1:0] m_jerk [NCNTRL-1:0];
 reg [REGBITS-1:0] m_accel [NCNTRL-1:0];
 reg [REGBITS-1:0] m_velocity [NCNTRL-1:0];
@@ -82,6 +87,8 @@ reg [REGBITS-1:0] m_pos [NCNTRL-1:0];
 initial begin: init_mem
 	integer i;
 	for (i = 0; i < NCNTRL; i = i + 1) begin
+		m_crackle[i] = 0;
+		m_snap[i] = 0;
 		m_jerk[i] = 0;
 		m_accel[i] = 0;
 		m_velocity[i] = 0;
@@ -105,9 +112,10 @@ localparam M_CMD_WAIT_IDLE  = 8'h68;
 localparam M_CMD_SET_EVENT  = 8'h69;
 localparam M_CMD_ENDSTOP_MASK=8'h6a;
 localparam M_CMD_ENDSTOP_POL= 8'h6b;
-localparam M_CMD_LOADALLREG = 8'h70;
 localparam M_CMD_LOADCNT    = 8'h71;
-localparam M_CMD_LOADREG    = 8'h80;	/* 0x80-0x8f */
+localparam M_CMD_LOADJERK   = 8'h80;	/* 0x80-0x8f */
+localparam M_CMD_LOADSNAP   = 8'h90;	/* 0x90-0x9f */
+localparam M_CMD_LOADCRACKLE= 8'ha0;	/* 0xa0-0xaf */
 /*
  * Queue handling, read packet from queue, interpret command,
  * fill preload registers
@@ -181,14 +189,16 @@ always @(posedge clk) begin: main_block
 		/*
 		 * last stage: interpret command
 		 */
-		if (mp_cmd[7:4] == M_CMD_LOADREG[7:4]) begin
-			m_preload_reg[mp_cmd[NCNTRL_BITS-1:0]] <= mp_creg;
+		if (mp_cmd[7:4] == M_CMD_LOADJERK[7:4]) begin
+			m_preload_jerk[mp_cmd[NCNTRL_BITS-1:0]] <= mp_creg;
 			mp_cmd_end <= 1;
 			len_fifo_rd_en <= 1;
-		end else if (mp_cmd == M_CMD_LOADALLREG) begin
-			for (i = 0; i < NCNTRL; i = i + 1) begin
-				m_preload_reg[i] <= mp_creg;
-			end
+		end else if (mp_cmd[7:4] == M_CMD_LOADSNAP[7:4]) begin
+			m_preload_snap[mp_cmd[NCNTRL_BITS-1:0]] <= mp_creg;
+			mp_cmd_end <= 1;
+			len_fifo_rd_en <= 1;
+		end else if (mp_cmd[7:4] == M_CMD_LOADCRACKLE[7:4]) begin
+			m_preload_crackle[mp_cmd[NCNTRL_BITS-1:0]] <= mp_creg;
 			mp_cmd_end <= 1;
 			len_fifo_rd_en <= 1;
 		end else if (mp_cmd == M_CMD_LOADCNT) begin
@@ -209,7 +219,9 @@ always @(posedge clk) begin: main_block
 				 */
 				m_cnt <= mp_creg;
 				for (i = 0; i < NCNTRL; i = i + 1) begin
-					m_jerk[i] <= m_preload_reg[i];
+					m_jerk[i] <= m_preload_jerk[i];
+					m_snap[i] <= m_preload_snap[i];
+					m_crackle[i] <= m_preload_crackle[i];
 				end;
 				mp_cmd_end <= 1;
 				len_fifo_rd_en <= 1;
@@ -294,7 +306,9 @@ always @(posedge clk) begin: main_block
 	end
 	if (motion_reset) begin
 		for (i = 0; i < NCNTRL; i = i + 1) begin
-			m_preload_reg[i] <= 0;
+			m_preload_jerk[i] <= 0;
+			m_preload_snap[i] <= 0;
+			m_preload_crackle[i] <= 0;
 			m_jerk[i] <= 0;
 			m_accel[i] <= 0;
 			m_velocity[i] <= 0;
