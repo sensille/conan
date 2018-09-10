@@ -295,6 +295,8 @@ always @(posedge clk) begin: main_block
 	end
 	if (m_cnt != 0) begin
 		for (i = 0; i < NCNTRL; i = i + 1) begin
+			m_snap[i] <= m_snap[i] + m_crackle[i];
+			m_jerk[i] <= m_jerk[i] + m_snap[i];
 			m_accel[i] <= m_accel[i] + m_jerk[i];
 			m_velocity[i] <= m_velocity[i] + m_accel[i];
 			/* do_step is the overflow of the addition */
