@@ -25,6 +25,13 @@
 #define E_X	2
 #define E_Z	4
 
+#define CMD_LOADJERK	0x80
+#define CMD_LOADSNAP	0x90
+#define CMD_LOADCRACKLE	0xa0
+
+#define MAX_PARAM_STR 100
+#define PARAM_SIZE (208 / 8)
+
 static uint64_t hz;
 static int steps_per_mm;
 static double step;
@@ -171,6 +178,24 @@ static void
 m_wait_endstop(comm_t *cd, int endstop)
 {
 	send_data_cmd(cd, 0x69, endstop);
+}
+
+static void
+send_longreg_cmd(comm_t *cd, uint8_t cmd, uint8_t val[PARAM_SIZE])
+{
+	uint8_t data[PARAM_SIZE + 1];
+	int i;
+
+	for (i = 0; i < PARAM_SIZE - 2; ++i) {
+		if (((val[i] == 0xff) && ( val[i + 1] & 0x80)) ||
+		    ((val[i] == 0x00) && (~val[i + 1] & 0x80)))
+			continue;
+		break;
+	}
+	data[0] = cmd;
+	memcpy(data + 1, val + i, PARAM_SIZE - i);
+
+	send0(cd, data, PARAM_SIZE - i + 1);
 }
 
 /*
@@ -695,12 +720,134 @@ star_test(comm_t *cc, comm_t *cd, double j)
 	move_xy(cc, cd,  -last_x, -last_y, v, j, a);
 }
 
+void
+parse_param(uint8_t v[PARAM_SIZE], char *s_v)
+{
+	int l = strlen(s_v);
+	uint8_t *dst = v + PARAM_SIZE - 1;
+	int upper = 0;
+	int neg = 0;
+	int i;
+
+	memset(v, 0, PARAM_SIZE);
+
+	for (i = l - 1; i >= 0; --i) {
+		char c = s_v[i];
+		uint8_t d = c >= 'a' ? c - 'a' + 10 : c - '0';
+
+		if (c == '-') {
+			if (i != 0) {
+				printf("invalid - in parameter %s\n", s_v);
+				abort();
+			}
+			neg = 1;
+		} else if (upper) {
+			*dst |= d << 4;
+			--dst;
+		} else {
+			if (dst < v) {
+				printf("overlong parameter %s\n", s_v);
+				abort();
+			}
+			*dst = d;
+		}
+		upper = !upper;
+	}
+
+	if (neg) {
+		uint16_t result;
+
+		for (i = 0; i < PARAM_SIZE; ++i)
+			v[i] = v[i] ^ 255;
+		for (i = PARAM_SIZE - 1; i >= 0; --i) {
+			result = v[i] + 1;
+			v[i] = result & 0xff;
+			if (result <= 255)
+				break;
+		}
+	}
+
+	printf("parsed %53s\n to     ", s_v);
+	for (i = 0; i < PARAM_SIZE; ++i)
+		printf("%.02x", v[i]);
+	printf("\n");
+}
+
+void
+test_from_file(comm_t *cc, comm_t *cd, char *fname)
+{
+	FILE *fp = fopen(fname, "r");
+	unsigned int steps;
+	char s_jx[MAX_PARAM_STR];
+	char s_sx[MAX_PARAM_STR];
+	char s_cx[MAX_PARAM_STR];
+	char s_jy[MAX_PARAM_STR];
+	char s_sy[MAX_PARAM_STR];
+	char s_cy[MAX_PARAM_STR];
+	uint8_t jx[PARAM_SIZE];
+	uint8_t sx[PARAM_SIZE];
+	uint8_t cx[PARAM_SIZE];
+	uint8_t jy[PARAM_SIZE];
+	uint8_t sy[PARAM_SIZE];
+	uint8_t cy[PARAM_SIZE];
+	int ret;
+	int i = 0;
+
+	if (fp == NULL) {
+		printf("failed to open input file\n");
+		exit(1);
+	}
+
+	while(++i) {
+		ret = fscanf(fp, "%d %s %s %s %s %s %s\n",
+			&steps, s_jx, s_sx, s_cx, s_jy, s_sy, s_cy);
+		if (ret == EOF)
+			break;
+		if (ret != 7) {
+			printf("failed to match line from input file\n");
+			exit(1);
+		}
+		parse_param(jx, s_jx);
+		parse_param(sx, s_sx);
+		parse_param(cx, s_cx);
+		parse_param(jy, s_jy);
+		parse_param(sy, s_sy);
+		parse_param(cy, s_cy);
+
+		send_longreg_cmd(cd, CMD_LOADJERK    + C_XY1 - 1, jx);
+		send_longreg_cmd(cd, CMD_LOADSNAP    + C_XY1 - 1, sx);
+		send_longreg_cmd(cd, CMD_LOADCRACKLE + C_XY1 - 1, cx);
+		send_longreg_cmd(cd, CMD_LOADJERK    + C_XY2 - 1, jy);
+		send_longreg_cmd(cd, CMD_LOADSNAP    + C_XY2 - 1, sy);
+		send_longreg_cmd(cd, CMD_LOADCRACKLE + C_XY2 - 1, cy);
+		m_load_cnt(cd, steps);
+
+		ret = print_status(cc);
+		if (ret) {
+			/* disable */
+			send0(cd, "\x40", 1);
+			send0(cc, "\x71\x01", 2);
+			exit(1);
+		}
+		if (i == 4) {
+			/* start motion controller */
+			send0(cc, "\x60", 1);
+		}
+	}
+	if (i <= 4)
+		send0(cc, "\x60", 1);
+}
+
 int
 main(int argc, char **argv)
 {
 	int ret;
 	comm_t cc;	/* control connection */
 	comm_t cd;	/* data connection */
+	char *fname = NULL;
+
+	if (argc == 2)
+		fname = argv[1];
 
 /*
 	256 microsteps
@@ -775,7 +922,10 @@ main(int argc, char **argv)
 #endif
 
 	int n = 5;
-	if (n == 1) {
+
+	if (fname != NULL) {
+		test_from_file(&cc, &cd, fname);
+	} else if (n == 1) {
 		square_test(&cc, &cd);
 	} else if (n == 2) {
 		line_test(&cc, &cd);
