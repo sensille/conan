@@ -1,4 +1,4 @@
-all: serial gmp
+all: motion serial gmp
 
 SRC = serial.c crc16.c main.c
 HDR = checksum.h serial.h
@@ -7,6 +7,9 @@ serial: $(SRC) $(HDR)
 
 gmp: gmp.c Makefile
 	gcc -Wall -g gmp.c -o gmp -lm -lgmp -lmpfr
+
+motion: motion.c Makefile
+	gcc -Wall -g motion.c -o motion -lm -lgmp -lmpfr
 
 plot:
 	gnuplot plot.gp
