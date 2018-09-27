@@ -1,4 +1,4 @@
-all: motion serial gmp
+all: motion serial gmp clothoid
 
 SRC = serial.c crc16.c main.c
 HDR = checksum.h serial.h
@@ -10,6 +10,9 @@ gmp: gmp.c Makefile
 
 motion: motion.c Makefile
 	gcc -Wall -g motion.c -o motion -lm -lgmp -lmpfr
+
+clothoid: clothoid.c Makefile
+	gcc -Wall -g clothoid.c -o clothoid -lm -lgmp -lmpfr
 
 plot:
 	gnuplot plot.gp
