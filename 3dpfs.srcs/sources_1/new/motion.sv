@@ -60,7 +60,7 @@ reg [NCNTRL_BITS_R-1:0] stepdir_routing[NSTEPDIR-1:0];
 initial begin: init_routing
 	integer i;
 	for (i = 0; i < NSTEPDIR; i = i + 1) begin
-		stepdir_routing[i] = 0;
+		stepdir_routing[i] <= 0;
 	end
 end
 
@@ -87,12 +87,12 @@ reg [REGBITS-1:0] m_pos [NCNTRL-1:0];
 initial begin: init_mem
 	integer i;
 	for (i = 0; i < NCNTRL; i = i + 1) begin
-		m_crackle[i] = 0;
-		m_snap[i] = 0;
-		m_jerk[i] = 0;
-		m_accel[i] = 0;
-		m_velocity[i] = 0;
-		m_pos[i] = 0;
+		m_crackle[i] <= 0;
+		m_snap[i] <= 0;
+		m_jerk[i] <= 0;
+		m_accel[i] <= 0;
+		m_velocity[i] <= 0;
+		m_pos[i] <= 0;
 	end
 end
 /*
