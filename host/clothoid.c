@@ -6,11 +6,9 @@
 #include <assert.h>
 #include <mpfr.h>
 
-#include "clothoid.h"
+#include "conan.h"
 
 #undef FRES_DEBUG
-
-mpfr_rnd_t rnd = MPFR_RNDN;
 
 /*
  * calculate Fresnel-integrals. See
@@ -18,7 +16,7 @@ mpfr_rnd_t rnd = MPFR_RNDN;
  * Algorithm 911. ACM Transactions on Mathematical Software, 37(4), 1-16.
  * doi:10.1145/1916461.1916470
  */
-void
+static void
 calcfresnel(mpfr_t C, mpfr_t S, mpfr_t x)
 {
 	mpfr_t tmp, t1, t2, v, half, pi;
@@ -222,7 +220,7 @@ calcfresnel(mpfr_t C, mpfr_t S, mpfr_t x)
 	mpfr_clears(tmp, t1, t2, v, half, NULL);
 }
 
-void
+static void
 _calcclothoid(mpfr_t x, mpfr_t y, mpfr_t a, mpfr_t b, mpfr_t t)
 {
 	mpfr_t tmp;
@@ -232,6 +230,64 @@ _calcclothoid(mpfr_t x, mpfr_t y, mpfr_t a, mpfr_t b, mpfr_t t)
 	calcfresnel(x, y, tmp);
 	mpfr_mul(x, x, a, rnd);
 	mpfr_mul(y, y, a, rnd);
+}
+
+void
+cloth_reset(path_elem_t *pe)
+{
+	clothoid_t *c = pe->clothoid;
+
+	c->ptr = 1;
+exit(0);
+}
+
+int
+cloth_next(path_elem_t *pe, mpfr_t t)
+{
+#if 0
+	clothoid_t *c = pe->clothoid;
+
+	assert(l->nsegments == 1);
+
+	if (l->ptr > 1)
+		return 0;
+
+	mpfr_set(t, l->segments[0].time, rnd);
+	++l->ptr;
+
+#endif
+	return 1;
+}
+
+void
+cloth_calc(void *ctx, mpfr_t t, mpfr_t x, mpfr_t y,
+	mpfr_t vx, mpfr_t vy, mpfr_t ax, mpfr_t ay)
+{
+#if 0
+	path_elem_t *pe = ctx;
+	clothoid_t *c = pe->clothoid;
+	mpfr_t tmp;
+	mpfr_init(tmp);
+
+	mpfr_sub(x, l->end_x, l->start_x, rnd);
+	mpfr_sub(y, l->end_y, l->start_y, rnd);
+	mpfr_set(vx, x, rnd);
+	mpfr_set(vy, y, rnd);
+	mpfr_div(tmp, t, l->segments[0].time, rnd);
+	mpfr_mul(x, x, tmp, rnd);
+	mpfr_mul(y, y, tmp, rnd);
+	mpfr_add(x, x, l->start_x, rnd);
+	mpfr_add(y, y, l->start_y, rnd);
+	mpfr_hypot(tmp, vx, vy, rnd);
+	mpfr_div(vx, vx, tmp, rnd);
+	mpfr_div(vy, vy, tmp, rnd);
+	mpfr_mul(vx, vx, l->start_v, rnd);
+	mpfr_mul(vy, vy, l->start_v, rnd);
+	mpfr_set_ui(ax, 0, rnd);
+	mpfr_set_ui(ay, 0, rnd);
+
+	mpfr_clear(tmp);
+#endif
 }
 
 /*
@@ -252,16 +308,25 @@ _calcclothoid(mpfr_t x, mpfr_t y, mpfr_t a, mpfr_t b, mpfr_t t)
  * - output is starting point, the point where the two clothoids meet, A of the
  *   the clothoids and the transformation matrix
  */
-clothoid_t *
-fit_line(mpfr_t inter_x, mpfr_t inter_y, mpfr_t _vx1, mpfr_t _vy1, mpfr_t _vx2, mpfr_t _vy2,
-	mpfr_t v, mpfr_t acc)
+path_elem_t *
+cloth_line(mpfr_t inter_x, mpfr_t inter_y, mpfr_t _vx1, mpfr_t _vy1,
+	mpfr_t _vx2, mpfr_t _vy2, mpfr_t v, mpfr_t acc)
 {
 	clothoid_t *c;
+	path_elem_t *pe;
 	mpfr_t phi, tmp, pi, x, dx, dy, vx1, vy1, vx2, vy2, rx, ry, mx, my, ml, vl;
 
-	c = calloc(sizeof(*c), 1);
-	assert(c != NULL);
-	mpfr_inits(c->a, c->b, c->t, c->px1, c->py1, c->px2, c->py2, NULL);
+	pe = calloc(sizeof(*pe) + sizeof(*c), 1);
+	assert(pe != NULL);
+	c = (clothoid_t *)(pe + 1);
+	pe->type = PT_CLOTHOID;
+	pe->clothoid = c;
+	pe->reset = cloth_reset;
+	pe->next = cloth_next;
+	pe->calc = cloth_calc;
+
+	mpfr_inits(c->a, c->b, c->t, c->vl, NULL);
+	mpfr_inits(c->px1, c->py1, c->px2, c->py2, NULL);
 	mpfr_inits(c->r1_11, c->r1_12, c->r1_21, c->r1_22, NULL);
 	mpfr_inits(c->r2_11, c->r2_12, c->r2_21, c->r2_22, NULL);
 
@@ -299,10 +364,6 @@ fit_line(mpfr_t inter_x, mpfr_t inter_y, mpfr_t _vx1, mpfr_t _vy1, mpfr_t _vx2, 
 	 * 90 deg - half the angle is the endpoint of the clothoid
 	 */
 	mpfr_div_ui(phi, phi, 2, rnd);
-#if 0
-	mpfr_div_ui(tmp, pi, 2, rnd);
-	mpfr_sub(phi, tmp, phi, rnd);
-#endif
 
 	mpfr_div(tmp, phi, pi, rnd);
 	mpfr_mul_ui(tmp, tmp, 180, rnd);
@@ -311,21 +372,6 @@ fit_line(mpfr_t inter_x, mpfr_t inter_y, mpfr_t _vx1, mpfr_t _vy1, mpfr_t _vx2, 
 	/*
 	 * calculate parameter from phi, v and acc
 	 */
-#if 0
-	mpfr_set_ui(c->t, 4, rnd);
-	mpfr_div(c->t, c->t, pi, rnd);
-	mpfr_mul(c->t, c->t, v, rnd);
-	mpfr_mul(c->t, c->t, phi, rnd);
-	mpfr_mul(c->t, c->t, phi, rnd);
-	mpfr_div(c->t, c->t, acc, rnd);
-
-	mpfr_div_ui(c->a, pi, 2, rnd);
-	mpfr_mul(c->a, c->a, v, rnd);
-	mpfr_div(c->a, c->a, phi, rnd);
-	mpfr_mul(c->a, c->a, c->t, rnd);
-
-	mpfr_div(c->b, v, c->a, rnd);
-#else
 	mpfr_set_ui(c->t, 2, rnd);
 	mpfr_div(c->t, c->t, acc, rnd);
 	mpfr_mul(c->t, c->t, phi, rnd);
@@ -338,7 +384,6 @@ fit_line(mpfr_t inter_x, mpfr_t inter_y, mpfr_t _vx1, mpfr_t _vy1, mpfr_t _vx2, 
 	mpfr_div(c->b, acc, c->b, rnd);
 
 	mpfr_div(c->a, v, c->b, rnd);
-#endif
 
 	/*
 	 * distance traveled by the clothoid
@@ -409,18 +454,24 @@ fit_line(mpfr_t inter_x, mpfr_t inter_y, mpfr_t _vx1, mpfr_t _vy1, mpfr_t _vx2, 
 	mpfr_neg(c->r2_21, vy2, rnd);
 	mpfr_neg(c->r2_22, vx2, rnd);
 
-	mpfr_clears(phi, tmp, pi, x, dx, dy, vx1, vy1, vx2, vy2, mx, my, ml, vl, rx, ry, NULL);
+	mpfr_set(c->vl, vl, rnd);
 
-	return c;
+	mpfr_clears(phi, tmp, pi, x, dx, dy, vx1, vy1, vx2, vy2, mx, my, ml,
+		vl, rx, ry, NULL);
+
+	return pe;
 }
 
 void
-free_clothoid(clothoid_t *c)
+free_clothoid(path_elem_t *pe)
 {
-	mpfr_clears(c->a, c->b, c->t, c->px1, c->py1, c->px2, c->py2, NULL);
+	clothoid_t *c = C(pe);
+
+	mpfr_clears(c->a, c->b, c->t, c->vl, NULL);
+	mpfr_clears(c->px1, c->py1, c->px2, c->py2, NULL);
 	mpfr_clears(c->r1_11, c->r1_12, c->r1_21, c->r1_22, NULL);
 	mpfr_clears(c->r2_11, c->r2_12, c->r2_21, c->r2_22, NULL);
-	free(c);
+	free(pe);
 }
 
 void
@@ -445,9 +496,6 @@ calcclothoid(clothoid_t *c, mpfr_t t, mpfr_t x, mpfr_t y)
 
 	if (mpfr_cmp(t, c->t) <= 0) {
 		_calcclothoid(x, y, c->a, c->b, t);
-#if 0
-mpfr_printf("(1) %.5Rf %.5Rf\n", x, y);
-#endif
 		/* rotate + translate point */
 		mpfr_mul(tmp, x, c->r1_11, rnd);
 		mpfr_fma(tmp, y, c->r1_12, tmp, rnd);
@@ -461,9 +509,6 @@ mpfr_printf("(1) %.5Rf %.5Rf\n", x, y);
 		mpfr_sub(tmp, c->t, t, rnd);
 		mpfr_add(tmp, tmp, c->t, rnd);
 		_calcclothoid(x, y, c->a, c->b, tmp);
-#if 0
-mpfr_printf("(2) %.5Rf %.5Rf\n", x, y);
-#endif
 
 		/* rotate + translate point */
 		mpfr_mul(tmp, x, c->r2_11, rnd);
@@ -478,7 +523,7 @@ mpfr_printf("(2) %.5Rf %.5Rf\n", x, y);
 	mpfr_clear(tmp);
 }
 
-#define TEST
+#undef TEST
 #ifdef TEST
 int
 main(int argc, char **argv)
@@ -501,7 +546,7 @@ main(int argc, char **argv)
 
 	clothoid_t *c;
 
-	c = fit_line(ix, iy, vx1, vy1, vx2, vy2, v, acc);
+	c = cloth_line(ix, iy, vx1, vy1, vx2, vy2, v, acc);
 
 	print_clothoid(c);
 

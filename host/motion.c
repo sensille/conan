@@ -6,7 +6,7 @@
 #include <math.h>
 #include <mpfr.h>
 
-mpfr_rnd_t rnd = MPFR_RNDN;
+#include "conan.h"
 
 /*
  * operations:
@@ -20,7 +20,7 @@ mpfr_rnd_t rnd = MPFR_RNDN;
 /*
  * calculate parameters for 5th oder polynomial
  */
-void
+static void
 fit5th(mpfr_t u,
 	mpfr_t x0, mpfr_t v0, mpfr_t a0, mpfr_t x1, mpfr_t v1, mpfr_t a1,
 	mpfr_t x, mpfr_t v, mpfr_t a, mpfr_t j, mpfr_t s, mpfr_t c)
@@ -105,117 +105,6 @@ fit5th(mpfr_t u,
 		x, v, a, j, s, c);
 }
 
-void
-calccircle(mpfr_t omega, mpfr_t t, mpfr_t r,
-	mpfr_t x, mpfr_t vx, mpfr_t ax, mpfr_t jx,
-	mpfr_t y, mpfr_t vy, mpfr_t ay, mpfr_t jy)
-{
-	mpfr_t sin_o, cos_o, omega2, omega3;
-
-	mpfr_inits(sin_o, cos_o, omega2, omega3, NULL);
-
-	mpfr_mul(omega2, omega, omega, rnd);
-	mpfr_mul(omega3, omega2, omega, rnd);
-	mpfr_mul(sin_o, omega, t, rnd);
-	mpfr_sin(sin_o, sin_o, rnd);
-	mpfr_mul(cos_o, omega, t, rnd);
-	mpfr_cos(cos_o, cos_o, rnd);
-
-	/*
-	 *  x =  r *          sin(omega * t);
-	 *  y =  r *          cos(omega * t);
-	 * vx =  r * omega  * cos(omega * t);
-	 * vy = -r * omega  * sin(omega * t);
-	 * ax = -r * omega2 * sin(omega * t);
-	 * ay = -r * omega2 * cos(omega * t);
-	 * jx = -r * omega3 * cos(omega * t);
-	 * jy =  r * omega3 * sin(omega * t);
-	 */
-	mpfr_mul(x, r, sin_o, rnd);
-	mpfr_mul(y, r, cos_o, rnd);
-
-	mpfr_mul(vx, omega, cos_o, rnd);
-	mpfr_mul(vx, vx, r, rnd);
-	mpfr_mul(vy, omega, sin_o, rnd);
-	mpfr_mul(vy, vy, r, rnd);
-	mpfr_neg(vy, vy, rnd);
-
-	mpfr_mul(ax, omega2, sin_o, rnd);
-	mpfr_mul(ax, ax, r, rnd);
-	mpfr_neg(ax, ax, rnd);
-	mpfr_mul(ay, omega2, cos_o, rnd);
-	mpfr_mul(ay, ay, r, rnd);
-	mpfr_neg(ay, ay, rnd);
-
-	if (jx != NULL) {
-		mpfr_mul(jx, omega3, cos_o, rnd);
-		mpfr_mul(jx, jx, r, rnd);
-		mpfr_neg(jx, jx, rnd);
-	}
-	if (jy != NULL) {
-		mpfr_mul(jy, omega3, sin_o, rnd);
-		mpfr_mul(jy, jy, r, rnd);
-	}
-}
-
-void
-calcclothoid(mpfr_t L, mpfr_t A, mpfr_t x0, mpfr_t y0, mpfr_t phi0,
-	mpfr_t x, mpfr_t vx, mpfr_t ax, mpfr_t jx,
-	mpfr_t y, mpfr_t vy, mpfr_t ay, mpfr_t jy)
-{
-	int N = 1000;
-	int n;
-	mpfr_t sn, ds, A2, tmp, tmp2;
-
-	mpfr_inits(sn, ds, A2, tmp, tmp2, NULL);
-
-	mpfr_div_ui(ds, L, N, rnd);
-	mpfr_set_ui(sn, 0, rnd);
-	mpfr_mul(A2, A, A, rnd);
-
-	mpfr_set(x, x0, rnd);
-	mpfr_set(y, y0, rnd);
-
-	for (n = 0; n < N; ++n) {
-		mpfr_mul(tmp, sn, sn, rnd);
-		mpfr_div_ui(tmp, tmp, 2, rnd);
-		mpfr_div(tmp, tmp, A2, rnd);
-		mpfr_add(tmp, tmp, phi0, rnd);
-		mpfr_cos(tmp2, tmp, rnd);
-		mpfr_mul(tmp2, tmp2, ds, rnd);
-		mpfr_add(x, x, tmp2, rnd);
-		mpfr_sin(tmp2, tmp, rnd);
-		mpfr_mul(tmp2, tmp2, ds, rnd);
-		mpfr_add(y, y, tmp2, rnd);
-		mpfr_add(sn, sn, ds, rnd);
-	}
-
-	mpfr_clears(sn, ds, A2, tmp, tmp2, NULL);
-}
-
-static void
-test_clothoid(void)
-{
-	int i;
-	mpfr_t dl, L, A, x0, y0, phi0;
-	mpfr_t x, vx, ax, jx, y, vy, ay, jy;
-
-	mpfr_inits(dl, L, A, x0, y0, phi0, x, vx, ax, jx, y, vy, ay, jy, NULL);
-	mpfr_set_ui(L, 0, rnd);
-	mpfr_set_ui(A, 20, rnd);
-	mpfr_set_ui(x0, 0, rnd);
-	mpfr_set_ui(y0, 0, rnd);
-	mpfr_set_ui(phi0, 0, rnd);
-	mpfr_set_ui(dl, 1, rnd);
-	mpfr_div_ui(dl, dl, 10, rnd);
-
-	for (i = 0; i < 1000; ++i) {
-		calcclothoid(L, A, x0, y0, phi0, x, vx, ax, jx, y, vy, ay, jy);
-		mpfr_add(L, L, dl, rnd);
-		mpfr_printf("x %.10Rf y %.10Rf\n", x, y);
-	}
-}
-
 static void
 norm(mpfr_t n, mpfr_t x, mpfr_t y)
 {
@@ -227,60 +116,6 @@ norm(mpfr_t n, mpfr_t x, mpfr_t y)
 	mpfr_add(n, n, tmp, rnd);
 	mpfr_sqrt(n, n, rnd);
 }
-
-typedef enum {
-	KIN_CARTESIAN	= 1,
-	KIN_COREXY	= 2,
-} kinematics_t;
-
-typedef void (*func_cb_t)(void *ctx, mpfr_t t, mpfr_t x, mpfr_t y,
-	mpfr_t vx, mpfr_t vy, mpfr_t ax, mpfr_t ay);
-
-typedef struct _motion {
-	kinematics_t	m_kinematics;
-
-	/*
-	 * scaling info
-	 */
-	mpfr_t		m_scale_f;
-	mpfr_t		m_scale;
-	mpz_t		m_scale_z;
-	mpz_t		m_maxval;
-	mpz_t		m_minval;
-	uint64_t	m_hz;
-	mpz_t		m_hz_z;
-	mpfr_t		m_freq;
-	int		m_bits;
-	mpfr_t		m_pi;
-
-	/*
-	 * device state
-	 */
-	uint64_t	m_absstep;
-	mpz_t		m_x;
-	mpz_t		m_y;
-	/* already transformed values, for next starting point */
-	mpfr_t		m_vx;
-	mpfr_t		m_ax;
-	mpfr_t		m_vy;
-	mpfr_t		m_ay;
-	/*
-	 * output
-	 */
-	FILE		*m_coeff;
-	FILE		*m_path;
-
-	/*
-	 * scratchpad, we keep them around here to save inits
-	 */
-	mpfr_t		m_tmp;
-
-	/*
-	 * simulation info
-	 * callback function to get reference value, for error checking
-	 */
-	uint64_t	m_simsteps;
-} motion_t;
 
 int
 motion_init(motion_t *mp, kinematics_t kinematics, const char *coeff_file,
@@ -437,7 +272,7 @@ scale_from_dev(motion_t *mp, mpz_t in, mpfr_t out)
  *   s = s' - 2*c'
  *   c = c'
  */
-void
+static void
 transform_to_dev(motion_t *mp, mpfr_t v, mpfr_t a, mpfr_t j, mpfr_t s, mpfr_t c,
 	mpz_t d_v, mpz_t d_a, mpz_t d_j, mpz_t d_s, mpz_t d_c)
 {
@@ -510,7 +345,7 @@ mpfr_printf("trans %.20Re %.20Re %.20Re %.20Re %.20Re\n", f_v, f_a, f_j, f_s, f_
 	mpfr_clears(f_v, f_a, f_j, f_s, f_c, tmp, NULL);
 }
 
-void
+static void
 transform_from_dev(motion_t *mp, mpz_t d_v, mpz_t d_a, mpz_t d_j, mpz_t d_s, mpz_t d_c,
 	mpfr_t v, mpfr_t a, mpfr_t j, mpfr_t s, mpfr_t c)
 {
@@ -931,150 +766,6 @@ mpfr_clears(px, py, NULL);
 }
 
 #if 0
-void
-approx_circle(param_t *pp, double radius, double v, int divisions)
-{
-	mpfr_t s, t, cyc, omega, r, dt, t0, u;
-	unsigned int cycles;
-	int i;
-
-	/*
-	 * calculate clock cycles per division
-	 *
-	 * s = 2 * M_PI * r;
-	 * t = s / v;
-	 * cycles = t * hz;
-	 */
-
-	mpfr_inits(s, t, cyc, omega, r, dt, t0, u, NULL);
-	mpfr_set_d(s, 2 * M_PI * radius, rnd);
-	mpfr_div_ui(s, s, divisions, rnd);
-	mpfr_div_d(t, s, v, rnd);
-	mpfr_mul_z(cyc, t, hz_z, rnd);
-	cycles = mpfr_get_ui(cyc, rnd);
-	mpfr_set_d(r, radius, rnd);
-
-	/* to avoid overflows, split into more segments */
-	if (cycles > 16 * 1048576) {
-		printf("XXX TODO need more divisions\n");
-		exit(1);
-	}
-	mpfr_set(u, cyc, rnd);
-	mpfr_set_d(omega, v, rnd);
-	mpfr_div(omega, omega, r, rnd);
-	mpfr_div_z(omega, omega, hz_z, rnd);
-
-	mpfr_printf("approx_circle: cycles %d omega %.10Re t %.10Re\n", cycles, omega, t);
-
-	mpfr_t e0_x, e0_y, e0_vx, e0_vy, e0_ax, e0_ay;
-	mpfr_t e1_x, e1_y, e1_vx, e1_vy, e1_ax, e1_ay;
-	mpfr_t x, vx, ax, jx, sx, cx;
-	mpfr_t y, vy, ay, jy, sy, cy;
-	mpfr_inits(e0_x, e0_y, e0_vx, e0_vy, e0_ax, e0_ay, NULL);
-	mpfr_inits(e1_x, e1_y, e1_vx, e1_vy, e1_ax, e1_ay, NULL);
-	mpfr_inits(x, vx, ax, jx, sx, cx, NULL);
-	mpfr_inits(y, vy, ay, jy, sy, cy, NULL);
-
-	mpz_t d_x, d_vx, d_ax, d_jx, d_sx, d_cx, d_y, d_vy, d_ay, d_jy, d_sy, d_cy;
-	mpz_inits(d_x, d_vx, d_ax, d_jx, d_sx, d_cx, d_y, d_vy, d_ay, d_jy, d_sy, d_cy, NULL);
-
-	mpfr_set_ui(t0, 0, rnd);
-	calccircle(omega, t0, r, e0_x, e0_vx, e0_ax, NULL, e0_y, e0_vy, e0_ay, NULL);
-	mpfr_set(u, cyc, rnd);
-	for (i = 0; i <= divisions; ++i) {
-		mpfr_mul_ui(dt, u, i, rnd);
-		mpfr_add(dt, dt, u, rnd); /* dt = t * (i + 1) */
-
-		calccircle(omega, dt, r, e1_x, e1_vx, e1_ax, NULL, e1_y, e1_vy, e1_ay, NULL);
-
-		mpfr_printf("e0_xy %.10Re %.10Re e0_vxy %.10Re %.10Re e0_axy %.10Re %.10Re\n", e0_x, e0_y, e0_vx, e0_vy, e0_ax, e0_ay);
-		mpfr_printf("e1_xy %.10Re %.10Re e1_vxy %.10Re %.10Re e1_axy %.10Re %.10Re\n", e1_x, e1_y, e1_vx, e1_vy, e1_ax, e1_ay);
-
-		fit5th(u, e0_x, e0_vx, e0_ax, e1_x, e1_vx, e1_ax, x, vx, ax, jx, sx, cx);
-		fit5th(u, e0_y, e0_vy, e0_ay, e1_y, e1_vy, e1_ay, y, vy, ay, jy, sy, cy);
-		scale_to_dev(x, vx, ax, jx, sx, cx, d_x, d_vx, d_ax, d_jx, d_sx, d_cx);
-		scale_to_dev(y, vy, ay, jy, sy, cy, d_y, d_vy, d_ay, d_jy, d_sy, d_cy);
-
-		mpfr_printf("jx %Zd sx %Zd cx %Zd jy %Zd sy %Zd cy %Zd\n", d_jx, d_sx, d_cx, d_jy, d_sy, d_cy);
-
-		push_parameters(pp, cycles, d_x, d_vx, d_ax, d_jx, d_sx, d_cx, d_y, d_vy, d_ay, d_jy, d_sy, d_cy);
-
-		mpfr_set(e0_x, e1_x, rnd);
-		mpfr_set(e0_vx, e1_vx, rnd);
-		mpfr_set(e0_ax, e1_ax, rnd);
-		mpfr_set(e0_y, e1_y, rnd);
-		mpfr_set(e0_vy, e1_vy, rnd);
-		mpfr_set(e0_ay, e1_ay, rnd);
-	}
-}
-
-void
-enter_circle(param_t *pp, double v)
-{
-	int cycles = hz;
-	mpfr_t e0_x, e0_y, e0_vx, e0_vy, e0_ax, e0_ay;
-	mpfr_t e1_x, e1_y, e1_vx, e1_vy, e1_ax, e1_ay;
-	mpfr_t x, vx, ax, jx, sx, cx;
-	mpfr_t y, vy, ay, jy, sy, cy;
-	mpfr_inits(e0_x, e0_y, e0_vx, e0_vy, e0_ax, e0_ay, NULL);
-	mpfr_inits(e1_x, e1_y, e1_vx, e1_vy, e1_ax, e1_ay, NULL);
-	mpfr_inits(x, vx, ax, jx, sx, cx, NULL);
-	mpfr_inits(y, vy, ay, jy, sy, cy, NULL);
-	mpz_t d_x, d_vx, d_ax, d_jx, d_sx, d_cx, d_y, d_vy, d_ay, d_jy, d_sy, d_cy;
-	mpz_inits(d_x, d_vx, d_ax, d_jx, d_sx, d_cx, d_y, d_vy, d_ay, d_jy, d_sy, d_cy, NULL);
-	mpfr_t u;
-	mpfr_init(u);
-	mpfr_set_ui(u, cycles, rnd);
-
-#if 0
-approx_circle: cycles 8377580 omega 1.8750000000e-08 t 4.1887902048e-01
-e0_xy 0.0000000000e+00 8.0000000000e+01 e0_vxy 1.5000000000e-06 -0.0000000000e+00 e0_axy -0.0000000000e+00 -2.8125000000e-14
-e1_xy 1.2514757203e+01 7.9015067248e+01 e1_vxy 1.4815325109e-06 -2.3465169756e-07 e1_axy -4.3997193293e-15 -2.7778734579e-14
-#endif
-
-	mpfr_set_d(e0_x,-10, rnd);
-	mpfr_set_d(e0_y, 70, rnd);
-	mpfr_set_d(e0_vx, 0, rnd);
-	mpfr_set_d(e0_vy, 0, rnd);
-	mpfr_set_d(e0_ax, 0, rnd);
-	mpfr_set_d(e0_ay, 0, rnd);
-
-	mpfr_set_d(e1_x, 0, rnd);
-	mpfr_set_d(e1_y, 80, rnd);
-	mpfr_set_d(e1_vx, v / hz, rnd);
-	mpfr_set_d(e1_vy, 0, rnd);
-	mpfr_set_d(e1_ax, 0, rnd);
-	mpfr_set_d(e1_ay, -2.8125e-14, rnd);
-
-	fit5th(u, e0_x, e0_vx, e0_ax, e1_x, e1_vx, e1_ax, x, vx, ax, jx, sx, cx);
-	fit5th(u, e0_y, e0_vy, e0_ay, e1_y, e1_vy, e1_ay, y, vy, ay, jy, sy, cy);
-	scale_to_dev(x, vx, ax, jx, sx, cx, d_x, d_vx, d_ax, d_jx, d_sx, d_cx);
-	scale_to_dev(y, vy, ay, jy, sy, cy, d_y, d_vy, d_ay, d_jy, d_sy, d_cy);
-
-	mpfr_printf("jx %Zd sx %Zd cx %Zd jy %Zd sy %Zd cy %Zd\n", d_jx, d_sx, d_cx, d_jy, d_sy, d_cy);
-
-	push_parameters(pp, cycles, d_x, d_vx, d_ax, d_jx, d_sx, d_cx, d_y, d_vy, d_ay, d_jy, d_sy, d_cy);
-}
-
-#endif
-
-typedef struct _circle_ctx {
-	mpfr_t	omega;
-	mpfr_t	r;
-	mpfr_t	start_t;
-	mpfr_t	t;
-} circle_ctx_t;
-
-void
-circle_cb(void *ctx, mpfr_t t, mpfr_t x, mpfr_t y,
-	mpfr_t vx, mpfr_t vy, mpfr_t ax, mpfr_t ay)
-{
-	circle_ctx_t *cp = ctx;
-
-	mpfr_add(cp->t, t, cp->start_t, rnd);
-	calccircle(cp->omega, cp->t, cp->r, x, vx, ax, NULL, y, vy, ay, NULL);
-}
-
 int
 main(int argc, char **argv)
 {
@@ -1094,9 +785,8 @@ main(int argc, char **argv)
 	mpfr_inits(e0_x, e0_vx, e0_ax, e0_y, e0_vy, e0_ay, NULL);
 
 
-	test_clothoid();
-
 	exit(0);
+#if 0
 #if 1
 	mpfr_set_d(e0_x,  -5.0, rnd);
 	mpfr_set_d(e0_y,  75.0, rnd);
@@ -1181,7 +871,9 @@ mpfr_set_ui(_j, 1000, rnd);
 #endif
 #endif
 
+#endif
 	motion_fini(&m);
 
 	return 0;
 }
+#endif

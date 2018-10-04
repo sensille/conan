@@ -1,18 +1,15 @@
-all: motion serial gmp clothoid
+all: conan serial
 
 SRC = serial.c crc16.c main.c
 HDR = checksum.h serial.h
-serial: $(SRC) $(HDR)
+C_SRC = motion.c clothoid.c circle.c planner.c line.c conan.c
+C_HDR = conan.h
+
+serial: $(SRC) $(HDR) Makefile
 	gcc -g -Wall $(SRC) -lm -o serial
 
-gmp: gmp.c Makefile
-	gcc -Wall -g gmp.c -o gmp -lm -lgmp -lmpfr
-
-motion: motion.c Makefile
-	gcc -Wall -g motion.c -o motion -lm -lgmp -lmpfr
-
-clothoid: clothoid.c Makefile
-	gcc -Wall -g clothoid.c -o clothoid -lm -lgmp -lmpfr
+conan: $(C_SRC) $(C_HDR) Makefile
+	gcc -g -Wall $(C_SRC) -lm  -lgmp -lmpfr -o conan
 
 plot:
 	gnuplot plot.gp
