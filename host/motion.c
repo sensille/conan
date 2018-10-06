@@ -563,6 +563,42 @@ motion_move_origin(motion_t *mp, mpfr_t e0_x, mpfr_t e0_y)
 	scale_to_dev(mp, e0_y, mp->m_y);
 }
 
+void
+motion_set_xy_v_a(motion_t *mp,
+	mpfr_t x, mpfr_t vx, mpfr_t ax,
+	mpfr_t y, mpfr_t vy, mpfr_t ay)
+{
+	mpfr_t _x, _y;
+	mpfr_inits(_x, _y, NULL);
+
+	mpfr_set(_x, x, rnd);
+	mpfr_set(_y, y, rnd);
+	to_kinematics(mp, _x, _y);
+	scale_to_dev(mp, _x, mp->m_x);
+	scale_to_dev(mp, _y, mp->m_y);
+
+#if 0
+	mpfr_set(mp->m_vx, vx, rnd);
+	mpfr_set(mp->m_vy, vy, rnd);
+	mpfr_set(mp->m_ax, ax, rnd);
+	mpfr_set(mp->m_ay, ay, rnd);
+#else
+	mpfr_set(_x, vx, rnd);
+	mpfr_set(_y, vy, rnd);
+	to_kinematics(mp, _x, _y);
+	mpfr_set(mp->m_vx, _x, rnd);
+	mpfr_set(mp->m_vy, _y, rnd);
+
+	mpfr_set(_x, ax, rnd);
+	mpfr_set(_y, ay, rnd);
+	to_kinematics(mp, _x, _y);
+	mpfr_set(mp->m_ax, _x, rnd);
+	mpfr_set(mp->m_ay, _y, rnd);
+#endif
+
+	mpfr_clears(_x, _y, NULL);
+}
+
 /*
  * move from the current position to the given position in given time t
  */
@@ -570,7 +606,7 @@ void
 motion_move(motion_t *mp, mpfr_t t,
 	mpfr_t e1_x, mpfr_t e1_vx, mpfr_t e1_ax,
 	mpfr_t e1_y, mpfr_t e1_vy, mpfr_t e1_ay,
-	func_cb_t func, void *func_ctx)
+	func_cb_t func, void *func_ctx, mpfr_t func_toff)
 {
 	mpfr_t e0_x, e0_y, e0_vx, e0_vy, e0_ax, e0_ay;
 	mpfr_t x, vx, ax, jx, sx, cx;
@@ -579,9 +615,9 @@ motion_move(motion_t *mp, mpfr_t t,
 	mpz_t d_vy, d_ay, d_jy, d_sy, d_cy;
 	mpfr_t u;
 	uint64_t cyc;
-	mpfr_t r_t, r_x, r_y, r_xy, r_vx, r_vy, r_v, r_ax, r_ay, r_a;
+	mpfr_t r_t, r_x, r_y, r_xy, r_vx, r_vy, r_v, r_ax, r_ay, r_a, dr_x, dr_y;
 
-	mpfr_inits(r_t, r_x, r_y, r_xy, r_vx, r_vy, r_v, r_ax, r_ay, r_a, NULL);
+	mpfr_inits(r_t, r_x, r_y, r_xy, r_vx, r_vy, r_v, r_ax, r_ay, r_a, dr_x, dr_y, NULL);
 	mpfr_inits(e0_x, e0_y, e0_vx, e0_vy, e0_ax, e0_ay, NULL);
 	mpfr_inits(x, vx, ax, jx, sx, cx, NULL);
 	mpfr_inits(y, vy, ay, jy, sy, cy, NULL);
@@ -675,7 +711,9 @@ mpfr_printf("t %.10Re e0_x %.10Re v %.10Re a %.10Re\n e1_x %.10Re v %.10Re a %.1
 			scale_from_dev(mp, sim_y, path_y);
 			transform_from_dev(mp, sim_vy, sim_ay, sim_jy, sim_sy, sim_cy,
 				path_vy, path_ay, path_jy, NULL, NULL);
+#if 0
 mpfr_printf("x/y from sim %.10Re %.10Re\n", path_x, path_y);
+#endif
 			from_kinematics(mp, path_x, path_y);
 			from_kinematics(mp, path_vx, path_vy);
 			from_kinematics(mp, path_ax, path_ay);
@@ -688,25 +726,30 @@ mpfr_printf("x/y from sim %.10Re %.10Re\n", path_x, path_y);
 				/* step to time */
 				mpfr_set_ui(r_t, relstep, rnd);
 				mpfr_mul(r_t, r_t, mp->m_freq, rnd);
-				func(func_ctx, r_t, r_x, r_y, r_vx, r_vy, r_ax, r_ay);
+				mpfr_add(r_t, r_t, func_toff, rnd);
+				func(func_ctx, r_t, r_x, r_vx, r_ax, r_y, r_vy, r_ay);
+mpfr_printf("sim xy %.5Re %.5Re v %.5Re %.5Re a %.5Re %.5Re\n", path_x, path_y, path_vx, path_vy, path_ax, path_ay);
+mpfr_printf("fnc xy %.5Re %.5Re v %.5Re %.5Re a %.5Re %.5Re\n", r_x, r_y, r_vx, r_vy, r_ax, r_ay);
+
 				/*
 				 * calculate deviation from real path
 				 */
-				mpfr_sub(r_x, r_x, path_x, rnd);
-				mpfr_sub(r_y, r_y, path_y, rnd);
-				norm(r_xy, r_x, r_y);
+				mpfr_sub(dr_x, r_x, path_x, rnd);
+				mpfr_sub(dr_y, r_y, path_y, rnd);
+				norm(r_xy, dr_x, dr_y);
 				norm(r_v, r_vx, r_vy);
 				mpfr_sub(r_v, r_v, path_v, rnd);
 				norm(r_a, r_ax, r_ay);
 				mpfr_sub(r_a, r_a, path_a, rnd);
+mpfr_printf("dev xy %.5Re v %.5Re a %.5Re\n", r_xy, r_v, r_a);
 			}
 
 			if (mp->m_path != NULL) {
 				mpfr_fprintf(mp->m_path,
-					"%.5f %.3Rf %.3Rf %.3Rf %.3Rf %.3Rf | %.3Re %.3Re %.3Re\n",
+					"%.5f %.3Rf %.3Rf %.3Rf %.3Rf %.3Rf | %.3Re %.3Re %.3Re | %.3Re %.3Re %.3Re %.3Re %.3Re %.3Re\n",
 					(double)step / mp->m_hz,
 					path_x, path_y, path_v, path_a, path_j,
-					r_xy, r_v, r_a);
+					r_xy, r_v, r_a, r_x, r_x, r_vx, r_vy, r_ax, r_ay);
 			}
 			n = steps > mp->m_simsteps ? mp->m_simsteps : steps;
 
@@ -762,7 +805,7 @@ mpfr_clears(px, py, NULL);
 	mpfr_clears(y, vy, ay, jy, sy, cy, NULL);
 	mpz_clears(d_jx, d_sx, d_cx, d_jy, d_sy, d_cy, NULL);
 	mpfr_clear(u);
-	mpfr_clears(r_t, r_x, r_y, r_xy, r_vx, r_vy, r_v, r_ax, r_ay, r_a, NULL);
+	mpfr_clears(r_t, r_x, r_y, r_xy, r_vx, r_vy, r_v, r_ax, r_ay, r_a, dr_x, dr_y, NULL);
 }
 
 #if 0

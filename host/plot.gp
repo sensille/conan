@@ -15,3 +15,7 @@ set output "v-err.png"
 plot "path.csv" using 1:9 title "v error" with lines
 set output "a-err.png"
 plot "path.csv" using 1:10 title "a error" with lines
+
+set term png size 1200,800
+set output "vx.png"
+plot "path.csv" using 1:12 title "vx" with points

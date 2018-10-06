@@ -1,5 +1,6 @@
 all: conan serial
 
+VER=4
 SRC = serial.c crc16.c main.c
 HDR = checksum.h serial.h
 C_SRC = motion.c clothoid.c circle.c planner.c line.c conan.c
@@ -13,7 +14,8 @@ conan: $(C_SRC) $(C_HDR) Makefile
 
 plot:
 	gnuplot plot.gp
-	cp index.html *.png /var/www/html/3dpfs/
+	-mkdir /var/www/html/3dpfs/$(VER)
+	cp index.html *.png /var/www/html/3dpfs/$(VER)/
 
 clean:
 	rm serial *.png gmp
