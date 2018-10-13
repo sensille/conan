@@ -641,7 +641,6 @@ main(int argc, char **argv)
 	approx_circle(&params, 80, 30, 40);
 	fclose(params.p_fp);
 
-exit(0);
 	mpfr_t r, div, omega, d, u;
 	mpfr_inits(r, div, omega, d, u, NULL);
 

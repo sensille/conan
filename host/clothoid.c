@@ -152,8 +152,7 @@ calcfresnel(mpfr_t C, mpfr_t S, mpfr_t x)
 	} else {
 		mpfr_t tmp, _C, _S, px2_2, fac, acc, C_prev, S_prev, prec;
 		/* XXX find out why BITS are not enough, change the algorithm */
-		mpfr_inits2(bits * 2, tmp, _C, _S, px2_2, fac, acc, C_prev, S_prev, NULL);
-		mpfr_init(prec);
+		mpfr_inits2(bits * 2, tmp, _C, _S, px2_2, fac, acc, C_prev, S_prev, prec, NULL);
 
 		/* convergent series */
 		mpfr_set_ui(prec, 1, rnd);
@@ -246,8 +245,8 @@ cloth_reset(path_elem_t *pe)
 	 */
 	mpfr_div_ui(tmp, c->L, 10, rnd);
 	c->nsegments = mpfr_get_ui(tmp, rnd);
-	if (c->nsegments < 4)
-		c->nsegments = 4;
+	if (c->nsegments < 2)
+		c->nsegments = 2;
 	c->ptr = 1;
 }
 
@@ -540,10 +539,12 @@ calcclothoid(clothoid_t *c, mpfr_t t, mpfr_t x, mpfr_t y,
 	mpfr_mul(ax, ax, vy, rnd);
 	mpfr_mul(ax, ax, _t, rnd);
 	mpfr_mul(ax, ax, c->b, rnd);
+	mpfr_mul(ax, ax, c->b, rnd);
 	mpfr_neg(ax, ax, rnd);
 	mpfr_const_pi(ay, rnd);
 	mpfr_mul(ay, ay, vx, rnd);
 	mpfr_mul(ay, ay, _t, rnd);
+	mpfr_mul(ay, ay, c->b, rnd);
 	mpfr_mul(ay, ay, c->b, rnd);
 
 #if 0

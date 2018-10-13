@@ -62,8 +62,8 @@ calccircle(mpfr_t omega, mpfr_t t, mpfr_t r,
 }
 
 void
-circle_cb(void *ctx, mpfr_t t, mpfr_t x, mpfr_t y,
-	mpfr_t vx, mpfr_t vy, mpfr_t ax, mpfr_t ay)
+circle_cb(void *ctx, mpfr_t t, mpfr_t x, mpfr_t vx,
+	mpfr_t ax, mpfr_t y, mpfr_t vy, mpfr_t ay)
 {
 	circle_ctx_t *cp = ctx;
 

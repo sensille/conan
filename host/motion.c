@@ -105,6 +105,66 @@ fit5th(mpfr_t u,
 		x, v, a, j, s, c);
 }
 
+/*
+ *   f(t) = x + v*t + a/2*t^2 + j/6*t^3 + s/24*t^4 + c/120*t^5
+ *  f'(t) =     v   + a  *t   + j/2*t^2 + s/ 6*t^3 + c/ 24*t^4
+ * f''(t) =           a       + j  *t   + s/ 2*t^2 + c/  6*t^3
+ */
+static void
+calc5th(mpfr_t t,
+	mpfr_t x, mpfr_t v, mpfr_t a, mpfr_t j, mpfr_t s, mpfr_t c,
+	mpfr_t p_x, mpfr_t p_v, mpfr_t p_a)
+{
+	mpfr_t t2, t3, t4, t5, tmp;
+	mpfr_inits(t2, t3, t4, t5, tmp, NULL);
+
+	mpfr_mul(t2, t, t, rnd);
+	mpfr_mul(t3, t2, t, rnd);
+	mpfr_mul(t4, t3, t, rnd);
+	mpfr_mul(t5, t4, t, rnd);
+
+	mpfr_set(p_x, x, rnd);
+	mpfr_mul(tmp, v, t, rnd);
+	mpfr_add(p_x, p_x, tmp, rnd);
+	mpfr_div_ui(tmp, a, 2, rnd);
+	mpfr_mul(tmp, tmp, t2, rnd);
+	mpfr_add(p_x, p_x, tmp, rnd);
+	mpfr_div_ui(tmp, j, 6, rnd);
+	mpfr_mul(tmp, tmp, t3, rnd);
+	mpfr_add(p_x, p_x, tmp, rnd);
+	mpfr_div_ui(tmp, s, 24, rnd);
+	mpfr_mul(tmp, tmp, t4, rnd);
+	mpfr_add(p_x, p_x, tmp, rnd);
+	mpfr_div_ui(tmp, c, 120, rnd);
+	mpfr_mul(tmp, tmp, t5, rnd);
+	mpfr_add(p_x, p_x, tmp, rnd);
+
+	mpfr_set(p_v, v, rnd);
+	mpfr_mul(tmp, a, t, rnd);
+	mpfr_add(p_v, p_v, tmp, rnd);
+	mpfr_div_ui(tmp, j, 2, rnd);
+	mpfr_mul(tmp, tmp, t2, rnd);
+	mpfr_add(p_v, p_v, tmp, rnd);
+	mpfr_div_ui(tmp, s, 6, rnd);
+	mpfr_mul(tmp, tmp, t3, rnd);
+	mpfr_add(p_v, p_v, tmp, rnd);
+	mpfr_div_ui(tmp, c, 24, rnd);
+	mpfr_mul(tmp, tmp, t4, rnd);
+	mpfr_add(p_v, p_v, tmp, rnd);
+
+	mpfr_set(p_a, a, rnd);
+	mpfr_mul(tmp, j, t, rnd);
+	mpfr_add(p_a, p_a, tmp, rnd);
+	mpfr_div_ui(tmp, s, 2, rnd);
+	mpfr_mul(tmp, tmp, t2, rnd);
+	mpfr_add(p_a, p_a, tmp, rnd);
+	mpfr_div_ui(tmp, c, 6, rnd);
+	mpfr_mul(tmp, tmp, t3, rnd);
+	mpfr_add(p_a, p_a, tmp, rnd);
+
+	mpfr_clears(t2, t3, t4, t5, tmp, NULL);
+}
+
 static void
 norm(mpfr_t n, mpfr_t x, mpfr_t y)
 {
@@ -616,11 +676,13 @@ motion_move(motion_t *mp, mpfr_t t,
 	mpfr_t u;
 	uint64_t cyc;
 	mpfr_t r_t, r_x, r_y, r_xy, r_vx, r_vy, r_v, r_ax, r_ay, r_a, dr_x, dr_y;
+	mpfr_t p_t, p_x, p_y, p_vx, p_vy, p_ax, p_ay;
 
 	mpfr_inits(r_t, r_x, r_y, r_xy, r_vx, r_vy, r_v, r_ax, r_ay, r_a, dr_x, dr_y, NULL);
 	mpfr_inits(e0_x, e0_y, e0_vx, e0_vy, e0_ax, e0_ay, NULL);
 	mpfr_inits(x, vx, ax, jx, sx, cx, NULL);
 	mpfr_inits(y, vy, ay, jy, sy, cy, NULL);
+	mpfr_inits(p_t, p_x, p_y, p_vx, p_vy, p_ax, p_ay, NULL);
 	mpz_inits(d_vx, d_ax, d_jx, d_sx, d_cx, NULL);
 	mpz_inits(d_vy, d_ay, d_jy, d_sy, d_cy, NULL);
 
@@ -726,6 +788,7 @@ mpfr_printf("x/y from sim %.10Re %.10Re\n", path_x, path_y);
 				/* step to time */
 				mpfr_set_ui(r_t, relstep, rnd);
 				mpfr_mul(r_t, r_t, mp->m_freq, rnd);
+				mpfr_set(p_t, r_t, rnd);
 				mpfr_add(r_t, r_t, func_toff, rnd);
 				func(func_ctx, r_t, r_x, r_vx, r_ax, r_y, r_vy, r_ay);
 mpfr_printf("sim xy %.5Re %.5Re v %.5Re %.5Re a %.5Re %.5Re\n", path_x, path_y, path_vx, path_vy, path_ax, path_ay);
@@ -742,14 +805,25 @@ mpfr_printf("fnc xy %.5Re %.5Re v %.5Re %.5Re a %.5Re %.5Re\n", r_x, r_y, r_vx, 
 				norm(r_a, r_ax, r_ay);
 				mpfr_sub(r_a, r_a, path_a, rnd);
 mpfr_printf("dev xy %.5Re v %.5Re a %.5Re\n", r_xy, r_v, r_a);
+
+				/*
+				 * calculate polynomial directly
+				 */
+				calc5th(p_t, x, vx, ax, jx, sx, cx, p_x, p_vx, p_ax);
+				calc5th(p_t, y, vy, ay, jy, sy, cy, p_y, p_vy, p_ay);
+				from_kinematics(mp, p_x, p_y);
+				from_kinematics(mp, p_vx, p_vy);
+				from_kinematics(mp, p_ax, p_ay);
 			}
 
 			if (mp->m_path != NULL) {
 				mpfr_fprintf(mp->m_path,
-					"%.5f %.3Rf %.3Rf %.3Rf %.3Rf %.3Rf | %.3Re %.3Re %.3Re | %.3Re %.3Re %.3Re %.3Re %.3Re %.3Re\n",
+					"%.5f %.5Rf %.5Rf %.5Rf %.5Rf %.5Rf | %.5Re %.5Re %.5Re | %.5Re %.5Re %.5Re %.5Re %.5Re %.5Re | %.5Re %.5Re %.5Re %.5Re | %.5Re %.5Re %.5Re %.5Re %.5Re %.5Re\n",
 					(double)step / mp->m_hz,
 					path_x, path_y, path_v, path_a, path_j,
-					r_xy, r_v, r_a, r_x, r_x, r_vx, r_vy, r_ax, r_ay);
+					r_xy, r_v, r_a, r_x, r_y, r_vx, r_vy, r_ax, r_ay,
+					path_vx, path_vy, path_ax, path_ay,
+					p_x, p_y, p_vx, p_vy, p_ax, p_ay);
 			}
 			n = steps > mp->m_simsteps ? mp->m_simsteps : steps;
 
@@ -804,11 +878,17 @@ mpfr_clears(px, py, NULL);
 	mpfr_clears(x, vx, ax, jx, sx, cx, NULL);
 	mpfr_clears(y, vy, ay, jy, sy, cy, NULL);
 	mpz_clears(d_jx, d_sx, d_cx, d_jy, d_sy, d_cy, NULL);
+	mpfr_inits(p_t, p_x, p_y, p_vx, p_vy, p_ax, p_ay, NULL);
 	mpfr_clear(u);
 	mpfr_clears(r_t, r_x, r_y, r_xy, r_vx, r_vy, r_v, r_ax, r_ay, r_a, dr_x, dr_y, NULL);
 }
 
-#if 0
+#ifdef TEST
+mpfr_rnd_t rnd = MPFR_RNDN;
+void
+circle_cb(void *ctx, mpfr_t t, mpfr_t x, mpfr_t y,
+	mpfr_t vx, mpfr_t vy, mpfr_t ax, mpfr_t ay);
+
 int
 main(int argc, char **argv)
 {
@@ -817,7 +897,7 @@ main(int argc, char **argv)
 
 	mpfr_set_default_prec(300);
 
-	ret = motion_init(&m, KIN_COREXY, "coeff.txt", "path.csv", 10000);
+	ret = motion_init(&m, KIN_COREXY, "coeff.txt", "path.csv", 1000);
 	if (ret < 0)
 		exit(1);
 
@@ -828,39 +908,11 @@ main(int argc, char **argv)
 	mpfr_inits(e0_x, e0_vx, e0_ax, e0_y, e0_vy, e0_ay, NULL);
 
 
-	exit(0);
-#if 0
 #if 1
+#if 0
 	mpfr_set_d(e0_x,  -5.0, rnd);
 	mpfr_set_d(e0_y,  75.0, rnd);
 	motion_move_origin(&m, e0_x, e0_y);
-#endif
-#if 0
-	/*
-	 * a = 100mm/s^2
-	 * j = 1000mm/s^3
-	 */
-mpfr_t _a, _j;
-mpfr_inits(_a, _j, NULL);
-mpfr_set_ui(_a, 100, rnd);
-mpfr_set_ui(_j, 1000, rnd);
-	mpfr_div(delta, _a, _j, rnd);
-	mpfr_set_ui(e0_x, 1, rnd);
-	mpfr_div_ui(e0_x, e0_x, 6, rnd);
-	mpfr_mul(e0_x, e0_x, _j, rnd);
-	mpfr_mul(e0_x, e0_x, delta, rnd);
-	mpfr_mul(e0_x, e0_x, delta, rnd);
-	mpfr_mul(e0_x, e0_x, delta, rnd);
-	mpfr_set_ui(e0_y, 0, rnd);
-	mpfr_set_ui(e0_vx, 1, rnd);
-	mpfr_div_ui(e0_vx, e0_vx, 2, rnd);
-	mpfr_mul(e0_vx, e0_vx, _j, rnd);
-	mpfr_mul(e0_vx, e0_vx, delta, rnd);
-	mpfr_mul(e0_vx, e0_vx, delta, rnd);
-	mpfr_set_ui(e0_vy, 0, rnd);
-	mpfr_set(e0_ax, _a, rnd);
-	mpfr_set_ui(e0_ay, 0, rnd);
-	motion_move(&m, delta, e0_x, e0_vx, e0_ax, e0_y, e0_vy, e0_ay, NULL, NULL);
 #endif
 
 #if 1
@@ -868,7 +920,7 @@ mpfr_set_ui(_j, 1000, rnd);
 	mpfr_set_d(t, 0, rnd);
 	mpfr_set_d(r, 80, rnd);
 
-	int div = 40;
+	int div = 10;
 	int i;
 
 	mpfr_add(delta, m.m_pi, m.m_pi, rnd); /* 2PI */
@@ -884,17 +936,22 @@ mpfr_set_ui(_j, 1000, rnd);
 	mpfr_init(cc.start_t);
 	mpfr_init(cc.t);
 
-	for (i = 0; i <= div; ++i) {
+	mpfr_t t0;
+	mpfr_init_set_ui(t0, 0, rnd);
+
+	calccircle(omega, t, r, e0_x, e0_vx, e0_ax, NULL, e0_y, e0_vy, e0_ay, NULL);
+	motion_set_xy_v_a(&m, e0_x, e0_vx, e0_ax, e0_y, e0_vy, e0_ay);
+
+	for (i = 0; i < div; ++i) {
+		mpfr_add(t, t, delta, rnd);
 		calccircle(omega, t, r, e0_x, e0_vx, e0_ax, NULL,
 			e0_y, e0_vy, e0_ay, NULL);
 
 		mpfr_printf("circle at %.10Re %.10Re %.10Re %.10Re %.10Re %.10Re %.10Re\n",
 			t, e0_x, e0_vx, e0_ax, e0_y, e0_vy, e0_ay);
 
-		motion_move(&m, delta, e0_x, e0_vx, e0_ax, e0_y, e0_vy, e0_ay, i == 0 ? NULL : circle_cb, &cc);
+		motion_move(&m, delta, e0_x, e0_vx, e0_ax, e0_y, e0_vy, e0_ay, i == 0 ? NULL : circle_cb, &cc, t0);
 		mpfr_set(cc.start_t, t, rnd);
-
-		mpfr_add(t, t, delta, rnd);
 	}
 
 	mpfr_clears(cc.omega, cc.r, cc.t, cc.start_t, NULL);
@@ -906,12 +963,10 @@ mpfr_set_ui(_j, 1000, rnd);
 	mpfr_set_d(e0_ax,    0, rnd);
 	mpfr_set_d(e0_ay,    0, rnd);
 
-	motion_move(&m, delta, e0_x, e0_vx, e0_ax, e0_y, e0_vy, e0_ay, NULL, NULL);
-
 #if 0
-	enter_circle(&params, 30);
-	approx_circle(&params, 80, 30, 40);
+	motion_move(&m, delta, e0_x, e0_vx, e0_ax, e0_y, e0_vy, e0_ay, NULL, NULL, NULL);
 #endif
+
 #endif
 
 #endif

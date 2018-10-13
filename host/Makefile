@@ -1,6 +1,6 @@
-all: conan serial
+all: conan serial motion
 
-VER=4
+VER=15
 SRC = serial.c crc16.c main.c
 HDR = checksum.h serial.h
 C_SRC = motion.c clothoid.c circle.c planner.c line.c conan.c
@@ -12,9 +12,12 @@ serial: $(SRC) $(HDR) Makefile
 conan: $(C_SRC) $(C_HDR) Makefile
 	gcc -g -Wall $(C_SRC) -lm  -lgmp -lmpfr -o conan
 
+motion: motion.c Makefile circle.c
+	gcc -g -Wall motion.c circle.c -DTEST -lm  -lgmp -lmpfr -o motion
+
 plot:
 	gnuplot plot.gp
-	-mkdir /var/www/html/3dpfs/$(VER)
+	mkdir -p /var/www/html/3dpfs/$(VER)
 	cp index.html *.png /var/www/html/3dpfs/$(VER)/
 
 clean:
