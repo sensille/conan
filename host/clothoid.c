@@ -303,6 +303,7 @@ cloth_line(mpfr_t inter_x, mpfr_t inter_y, mpfr_t _vx1, mpfr_t _vy1,
 	path_elem_t *pe;
 	mpfr_t phi, tmp, pi, x, dx, dy, vx1, vy1, vx2, vy2, rx, ry;
 	mpfr_t mx, my, ml, vl;
+	int left = 0;
 
 	pe = calloc(sizeof(*pe) + sizeof(*c), 1);
 	assert(pe != NULL);
@@ -341,10 +342,25 @@ cloth_line(mpfr_t inter_x, mpfr_t inter_y, mpfr_t _vx1, mpfr_t _vy1,
 	/*
 	 * calculate the angle between the lines
 	 */
+	/* dot product for 0-180 deg */
 	mpfr_mul(phi, vx1, vx2, rnd);
 	mpfr_fma(phi, vy1, vy2, phi, rnd);
 	mpfr_printf("phi is %.5Rf\n", phi);
 	mpfr_acos(phi, phi, rnd);
+	/* cross product to determine left/right turn */
+	mpfr_mul(tmp, vx1, vy2, rnd);
+	mpfr_fms(tmp, vx2, vy1, tmp, rnd);
+	if (mpfr_cmp_ui(tmp, 0) < 0) {
+		mpfr_printf("left turn detected\n");
+		left = 1;
+		/* swap v1 and v2 */
+		mpfr_set(tmp, vx1, rnd);
+		mpfr_neg(vx1, vx2, rnd);
+		mpfr_neg(vx2, tmp, rnd);
+		mpfr_set(tmp, vy1, rnd);
+		mpfr_neg(vy1, vy2, rnd);
+		mpfr_neg(vy2, tmp, rnd);
+	}
 
 	mpfr_div(tmp, phi, pi, rnd);
 	mpfr_mul_ui(tmp, tmp, 180, rnd);
@@ -452,6 +468,29 @@ cloth_line(mpfr_t inter_x, mpfr_t inter_y, mpfr_t _vx1, mpfr_t _vy1,
 	 */
 	mpfr_mul(c->L, c->a, c->b, rnd);
 	mpfr_mul(c->L, c->L, c->t, rnd);
+
+	if (left) {
+		/* swap results back */
+		mpfr_set(tmp, c->px1, rnd);
+		mpfr_set(c->px1, c->px2, rnd);
+		mpfr_set(c->px2, tmp, rnd);
+		mpfr_set(tmp, c->py1, rnd);
+		mpfr_set(c->py1, c->py2, rnd);
+		mpfr_set(c->py2, tmp, rnd);
+
+		mpfr_set(tmp, c->r1_11, rnd);
+		mpfr_set(c->r1_11, c->r2_11, rnd);
+		mpfr_set(c->r2_11, tmp, rnd);
+		mpfr_set(tmp, c->r1_12, rnd);
+		mpfr_set(c->r1_12, c->r2_12, rnd);
+		mpfr_set(c->r2_12, tmp, rnd);
+		mpfr_set(tmp, c->r1_21, rnd);
+		mpfr_set(c->r1_21, c->r2_21, rnd);
+		mpfr_set(c->r2_21, tmp, rnd);
+		mpfr_set(tmp, c->r1_22, rnd);
+		mpfr_set(c->r1_22, c->r2_22, rnd);
+		mpfr_set(c->r2_22, tmp, rnd);
+	}
 
 	mpfr_clears(phi, tmp, pi, x, dx, dy, vx1, vy1, vx2, vy2, mx, my, ml,
 		vl, rx, ry, NULL);

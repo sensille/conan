@@ -66,10 +66,10 @@ main(int argc, char **argv)
 	mpfr_t max_acc, max_v;
 	mpfr_inits(max_acc, max_v, NULL);
 
-	mpfr_set_ui(max_acc, 400, rnd);
+	mpfr_set_ui(max_acc, 1000, rnd);
 	mpfr_set_d(max_v, 100, rnd);
 
-	npoints = 4;
+	npoints = 5;
 	points = calloc(sizeof(*points), npoints);
 	
 	mpfr_init_set_ui(points[0].x, 20, rnd);
@@ -80,6 +80,8 @@ main(int argc, char **argv)
 	mpfr_init_set_ui(points[2].y, 90, rnd);
 	mpfr_init_set_ui(points[3].x, 120, rnd);
 	mpfr_init_set_ui(points[3].y, 50, rnd);
+	mpfr_init_set_ui(points[4].x, 180, rnd);
+	mpfr_init_set_ui(points[4].y, 70, rnd);
 	ret = plan(max_acc, max_v, points, npoints, &path);
 	printf("plan retourned %d\n", ret);
 
