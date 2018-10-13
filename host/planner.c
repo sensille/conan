@@ -36,29 +36,36 @@ get_max_speed(mpfr_t max_acc, mpfr_t max_v,
 	path_elem_t *c;
 	int i;
 
+mpfr_t nan; mpfr_init(nan);
+mpfr_printf("xx: lx1 %.5Rf ly1 %.5Rf lx2 %.5Rf ly2 %.5Rf vx1 %.5Rf vy1 %.5Rf vx2 %.5Rf vy2 %.5Rf v %.5Rf\n",
+	lx1, ly1, lx2, ly2, vx1 ? vx1 : nan, vy1 ? vy1 : nan, vx2 ? vx2 : nan, vy2 ? vy2 : nan, max_v);
+
 	mpfr_t dx, dy, dl, l, low_v, hi_v;
 	mpfr_inits(dx, dy, dl, l, low_v, hi_v, NULL);
 	mpfr_set_ui(l, 0, rnd);
 
 	mpfr_sub(dx, lx2, lx1, rnd);
 	mpfr_sub(dy, ly2, ly1, rnd);
-	mpfr_hypot(dl, lx1, lx2, rnd);
+	mpfr_hypot(dl, dx, dy, rnd);
 
 	if (vx1 != NULL) {
-		c = cloth_line(lx1, ly1, vx1, vy1, dx, dy, v, max_acc);
+		c = cloth_line(lx1, ly1, vx1, vy1, dx, dy, max_v, max_acc);
 		if (c == NULL)
 			return -1;
+mpfr_printf("xx: from c1: l %.5Rf\n", C(c)->vl);
 		mpfr_add(l, l, C(c)->vl, rnd);
 		free_path_elem(c);
 	}
 	if (vx2 != NULL) {
-		c = cloth_line(lx2, ly2, dx, dy, vx2, vy2, v, max_acc);
+		c = cloth_line(lx2, ly2, dx, dy, vx2, vy2, max_v, max_acc);
 		if (c == NULL)
 			return -1;
+mpfr_printf("xx: from c2: l %.5Rf\n", C(c)->vl);
 		mpfr_add(l, l, C(c)->vl, rnd);
 		free_path_elem(c);
 	}
 
+mpfr_printf("xx: l %.5Rf dl %.5Rf\n", l, dl);
 	if (mpfr_cmp(l, dl) < 0) {
 		/*
 		 * we can run with max_v
@@ -67,6 +74,7 @@ get_max_speed(mpfr_t max_acc, mpfr_t max_v,
 		return 0;
 	}
 
+printf("xx: approximation needed\n");
 	/*
 	 * approximate a max v to use
 	 */
@@ -83,6 +91,7 @@ get_max_speed(mpfr_t max_acc, mpfr_t max_v,
 			c = cloth_line(lx1, ly1, vx1, vy1, dx, dy, v, max_acc);
 			if (c == NULL)
 				return -1;
+mpfr_printf("xx: a. from c1: l %.5Rf start %.5Rf/%.5Rf end %.5Rf/%.5Rf\n", C(c)->vl, C(c)->px1, C(c)->py1, C(c)->px2, C(c)->py2);
 			mpfr_add(l, l, C(c)->vl, rnd);
 			free_path_elem(c);
 		}
@@ -90,10 +99,12 @@ get_max_speed(mpfr_t max_acc, mpfr_t max_v,
 			c = cloth_line(lx2, ly2, dx, dy, vx2, vy2, v, max_acc);
 			if (c == NULL)
 				return -1;
+mpfr_printf("xx: a. from c2: l %.5Rf start %.5Rf/%.5Rf end %.5Rf/%.5Rf\n", C(c)->vl, C(c)->px1, C(c)->py1, C(c)->px2, C(c)->py2);
 			mpfr_add(l, l, C(c)->vl, rnd);
 			free_path_elem(c);
 		}
 
+mpfr_printf("xx: v %.5Rf low_v %.5Rf high_v %.5Rf l %.5Rf dl %.5Rf\n", v, low_v, hi_v, l, dl);
 		if (mpfr_cmp(l, dl) < 0)
 			mpfr_set(low_v, v, rnd);
 		else
@@ -120,11 +131,12 @@ plan(mpfr_t max_acc, mpfr_t max_v, point_t *points, int npoints, path_t **path)
 	path_elem_t *c;
 	path_elem_t *l;
 	int eix = 0;
+	int max_elem;
 
 	pp = calloc(sizeof(*pp), 1);
 	mpfr_init(pp->target_v);
-	pp->nelem = 2 * npoints - 3;
-	pp->p = calloc(sizeof(*pe), pp->nelem);
+	max_elem = 2 * npoints - 3;
+	pp->p = calloc(sizeof(*pe), max_elem);
 
 	mpfr_inits(vx1, vy1, vx2, vy2, v, target_v, NULL);
 
@@ -143,15 +155,16 @@ plan(mpfr_t max_acc, mpfr_t max_v, point_t *points, int npoints, path_t **path)
 		ret = get_max_speed(max_acc, target_v,
 			points[i].x, points[i].y,
 			points[i+1].x, points[i+1].y,
-			i > 0 ? vx1 : NULL, i > 0 ? vx2 : NULL,
+			i > 0 ? vx1 : NULL, i > 0 ? vy1 : NULL,
 			i < npoints-2 ? vx2 : NULL, i < npoints-2 ? vy2 : NULL,
 			v);
 		if (ret)
 			return ret;
-		if (mpfr_cmp(v, max_v) < 0)
+		if (mpfr_cmp(v, target_v) < 0)
 			mpfr_set(target_v, v, rnd);
 	}
 
+mpfr_printf("xx: max speed is %.5Rf\n", target_v);
 	prev_endpoint = points[0];
 	/* pass two: render path */
 	for (i = 1; i < npoints - 1; ++i) {
@@ -169,15 +182,16 @@ plan(mpfr_t max_acc, mpfr_t max_v, point_t *points, int npoints, path_t **path)
 		 */
 		c = cloth_line(p1->x, p1->y, vx1, vy1, vx2, vy2, target_v, max_acc);
 		assert(c != NULL);
+mpfr_printf("xx: c: l %.5Rf start %.5Rf/%.5Rf end %.5Rf/%.5Rf\n", C(c)->vl, C(c)->px1, C(c)->py1, C(c)->px2, C(c)->py2);
 
 		/*
 		 * draw the line connecting to the clothoid
 		 */
-		l = const_line(v, prev_endpoint.x, prev_endpoint.y,
+		l = const_line(target_v, prev_endpoint.x, prev_endpoint.y,
 			C(c)->px1, C(c)->py1);
-		assert(l != NULL);
 		
-		pp->p[eix++] = l;
+		if (l != NULL)
+			pp->p[eix++] = l;
 		pp->p[eix++] = c;
 
 		mpfr_set(prev_endpoint.x, C(c)->px2, rnd);
@@ -189,10 +203,12 @@ plan(mpfr_t max_acc, mpfr_t max_v, point_t *points, int npoints, path_t **path)
 	 */
 	l = const_line(target_v, prev_endpoint.x, prev_endpoint.y,
 		points[npoints - 1].x, points[npoints - 1].y);
-	assert(l != NULL);
-	
-	pp->p[eix++] = l;
-	assert(eix == pp->nelem);
+	if (l != NULL)
+		pp->p[eix++] = l;
+
+	assert(eix <= max_elem);
+
+	pp->nelem = eix;
 
 	mpfr_set(pp->target_v, target_v, rnd);
 

@@ -3,6 +3,8 @@
 
 #include "conan.h"
 
+#define MIN_LINE_LEN 0.001
+
 void
 line_reset(path_elem_t *pe)
 {
@@ -77,7 +79,17 @@ const_line(mpfr_t v, mpfr_t x1, mpfr_t y1, mpfr_t x2, mpfr_t y2)
 	mpfr_sub(dx, x2, x1, rnd);
 	mpfr_sub(dy, y2, y1, rnd);
 	mpfr_hypot(time, dx, dy, rnd);
+
+	if (mpfr_cmp_d(time, MIN_LINE_LEN) < 0) {
+		mpfr_printf("line too short, omit line of length %.5Re\n", time);
+		free(pe);
+		return NULL;
+	}
+
 	mpfr_div(time, time, v, rnd);
+
+	mpfr_printf("const_line: v %.5Rf start %.5Rf/%.5Rf end %.5Rf/%.5Rf time %.5Rf\n",
+		v, x1, y1, x2, y2, time);
 
 	mpfr_init_set(l->start_x, x1, rnd);
 	mpfr_init_set(l->start_y, y1, rnd);

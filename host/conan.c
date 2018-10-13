@@ -66,8 +66,8 @@ main(int argc, char **argv)
 	mpfr_t max_acc, max_v;
 	mpfr_inits(max_acc, max_v, NULL);
 
-	mpfr_set_ui(max_acc, 1000, rnd);
-	mpfr_set_ui(max_v, 100, rnd);
+	mpfr_set_ui(max_acc, 400, rnd);
+	mpfr_set_d(max_v, 100, rnd);
 
 	npoints = 4;
 	points = calloc(sizeof(*points), npoints);

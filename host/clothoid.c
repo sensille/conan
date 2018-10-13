@@ -321,8 +321,8 @@ cloth_line(mpfr_t inter_x, mpfr_t inter_y, mpfr_t _vx1, mpfr_t _vy1,
 	mpfr_inits(phi, tmp, pi, x, dx, dy, vx1, vy1, vx2, vy2, rx, ry, NULL);
 	mpfr_inits(mx, my, ml, vl, NULL);
 
-	mpfr_printf("inter (%.2Rf/%.2Rf) v1 (%.2Rf/%.2Rf) v2 (%.2Rf/%.2Rf)\n",
-		inter_x, inter_y, _vx1, _vy1, _vx2, _vy2);
+	mpfr_printf("inter (%.2Rf/%.2Rf) v1 (%.2Rf/%.2Rf) v2 (%.2Rf/%.2Rf) v %.5Rf acc %0.5Rf\n",
+		inter_x, inter_y, _vx1, _vy1, _vx2, _vy2, v, acc);
 
 	mpfr_const_pi(pi, rnd);
 
