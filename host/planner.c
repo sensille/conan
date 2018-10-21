@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <assert.h>
+#include <string.h>
 
 #include "conan.h"
 
@@ -18,7 +19,7 @@ second pass: render at min[max_speeds]
  * speed. If this exceeds the actual line length, approximatively find the
  * max possible speed.
  * lx1/ly1: first junction
- * lx2/ly2: second junction
+ j lx2/ly2: second junction
  * vx1/vy1: line direction and length into the first junction (optional)
  * vx2/vy2: line direction and length out of the second junction (optional)
  * The line under consideration is the line between lx1/ly1 and lx2/ly2.
@@ -113,6 +114,7 @@ mpfr_printf("xx: v %.5Rf low_v %.5Rf high_v %.5Rf l %.5Rf dl %.5Rf\n", v, low_v,
 	
 	}
 	mpfr_set(v, low_v, rnd);
+mpfr_printf("xx: approximation done: v %.5Rf\n", v);
 
 	mpfr_clears(dx, dy, dl, l, low_v, hi_v, NULL);
 
@@ -120,11 +122,12 @@ mpfr_printf("xx: v %.5Rf low_v %.5Rf high_v %.5Rf l %.5Rf dl %.5Rf\n", v, low_v,
 }
 
 int
-plan(mpfr_t max_acc, mpfr_t max_v, point_t *points, int npoints, path_t **path)
+plan(mpfr_t max_acc, mpfr_t max_v, point_t *_points, int _npoints,
+	path_t **path)
 {
 	int i;
 	int ret;
-	mpfr_t vx1, vy1, vx2, vy2, v, target_v;
+	mpfr_t vx1, vy1, vx2, vy2, v, target_v, tmp, thresh;
 	path_elem_t *pe;
 	path_t *pp;
 	point_t prev_endpoint;
@@ -132,13 +135,75 @@ plan(mpfr_t max_acc, mpfr_t max_v, point_t *points, int npoints, path_t **path)
 	path_elem_t *l;
 	int eix = 0;
 	int max_elem;
+	point_t *points;
+	int npoints = _npoints;
+
+	mpfr_inits(vx1, vy1, vx2, vy2, v, target_v, tmp, thresh, NULL);
+
+printf("--- planner start ---\n");
+	/*
+	 * copy points for preprocessing
+	 */
+	points = calloc(sizeof(*points), npoints);
+	for (i = 0; i < npoints; ++i) {
+		mpfr_inits(points[i].x, points[i].y, NULL);
+		mpfr_set(points[i].x, _points[i].x, rnd);
+		mpfr_set(points[i].y, _points[i].y, rnd);
+	}
+
+	/*
+	 * preprocessing: remove duplicate points
+	 */
+	mpfr_set_d(thresh, 0.001, rnd);
+	for (i = 0; npoints > 1 && i < npoints - 1; ++i) {
+		mpfr_sub(tmp, points[i].x, points[i+1].x, rnd);
+		mpfr_abs(tmp, tmp, rnd);
+		if (mpfr_cmp(tmp, thresh) > 0)
+			continue;
+		mpfr_sub(tmp, points[i].y, points[i+1].y, rnd);
+		mpfr_abs(tmp, tmp, rnd);
+		if (mpfr_cmp(tmp, thresh) > 0)
+			continue;
+		printf("remove point %d\n", i);
+		memmove(points + i, points + i + 1,
+			sizeof(*points) * (npoints - i));
+		--npoints;
+	}
+
+	/*
+	 * preprocessing: remove points in a line
+	 */
+	mpfr_set_d(thresh, 0.00001, rnd);
+	for (i = 0; npoints > 2 && i < npoints - 2; ++i) {
+		mpfr_sub(vx1, points[i].x, points[i+1].x, rnd);
+		mpfr_sub(vy1, points[i].y, points[i+1].y, rnd);
+		mpfr_sub(vx2, points[i+1].x, points[i+2].x, rnd);
+		mpfr_sub(vy2, points[i+1].y, points[i+2].y, rnd);
+#if 0
+		mpfr_hypot(tmp, vx1, vy1, rnd);
+		mpfr_div(vx1, vx1, tmp, rnd);
+		mpfr_div(vy1, vy1, tmp, rnd);
+		mpfr_hypot(tmp, vx2, vy2, rnd);
+		mpfr_div(vx2, vx2, tmp, rnd);
+		mpfr_div(vy2, vy2, tmp, rnd);
+#endif
+		mpfr_mul(tmp, vx1, vy2, rnd);
+		mpfr_fms(tmp, vx2, vy1, tmp, rnd);
+		mpfr_abs(tmp, tmp, rnd);
+mpfr_printf("point %d v1 %.5Re/%.5Re v2 %.5Re/%.5Re cp %.5Re\n", i, vx1, vy1, vx2, vy2, tmp);
+		if (mpfr_cmp(tmp, thresh) > 0)
+			continue;
+		mpfr_printf("remove point %d from line, cross product is %.5Re\n",
+			i, tmp);
+		memmove(points + i + 1, points + i + 2,
+			sizeof(*points) * (npoints - i - 1));
+		--npoints;
+	}
 
 	pp = calloc(sizeof(*pp), 1);
 	mpfr_init(pp->target_v);
 	max_elem = 2 * npoints - 3;
 	pp->p = calloc(sizeof(*pe), max_elem);
-
-	mpfr_inits(vx1, vy1, vx2, vy2, v, target_v, NULL);
 
 	mpfr_set(target_v, max_v, rnd);
 
@@ -214,6 +279,7 @@ mpfr_printf("xx: c: l %.5Rf start %.5Rf/%.5Rf end %.5Rf/%.5Rf\n", C(c)->vl, C(c)
 
 	mpfr_clears(vx1, vy1, vx2, vy2, v, target_v, NULL);
 
+printf("--- planner end ---\n");
 	*path = pp;
 
 	return 0;

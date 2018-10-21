@@ -1,9 +1,9 @@
 all: conan serial motion
 
-VER=18
+VER=20
 SRC = serial.c crc16.c main.c
 HDR = checksum.h serial.h
-C_SRC = motion.c clothoid.c circle.c planner.c line.c conan.c
+C_SRC = motion.c clothoid.c circle.c planner.c line.c conan.c gcode.c
 C_HDR = conan.h
 
 serial: $(SRC) $(HDR) Makefile

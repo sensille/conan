@@ -178,7 +178,8 @@ norm(mpfr_t n, mpfr_t x, mpfr_t y)
 }
 
 int
-motion_init(motion_t *mp, kinematics_t kinematics, const char *coeff_file,
+motion_init(motion_t *mp, mpfr_t max_acc, mpfr_t max_v,
+	kinematics_t kinematics, const char *coeff_file,
 	const char *path_file, int simsteps)
 {
 	memset(mp, 0, sizeof(*mp));
@@ -241,6 +242,12 @@ mpfr_printf("pi is %Re\n", mp->m_pi);
 	mp->m_simsteps = simsteps;
 	mp->m_kinematics = kinematics;
 
+	/*
+	 * limits
+	 */
+	mpfr_init_set(mp->m_max_acc, max_acc, rnd);
+	mpfr_init_set(mp->m_max_v, max_v, rnd);
+
 	return 0;
 }
 
@@ -259,11 +266,11 @@ static void
 check_limits(motion_t *mp, mpz_t z, char *name)
 {
 	if (mpz_cmp(z, mp->m_maxval) > 0) {
-		printf("%s exceeded maxval\n", name);
+		mpfr_printf("%s exceeded maxval: %Zd\n", name, z);
 		exit(1);
 	}
 	if (mpz_cmp(z, mp->m_minval) < 0) {
-		printf("%s exceeded minval\n", name);
+		mpfr_printf("%s exceeded minval: %Zd\n", name, z);
 		exit(1);
 	}
 }
@@ -897,7 +904,11 @@ main(int argc, char **argv)
 
 	mpfr_set_default_prec(300);
 
-	ret = motion_init(&m, KIN_COREXY, "coeff.txt", "path.csv", 1000);
+	mpfr_t max_acc, max_v;
+	mpfr_inits(max_acc, max_v, NULL);
+
+	ret = motion_init(&m, max_acc, max_v, KIN_COREXY, "coeff.txt",
+		"path.csv", 1000);
 	if (ret < 0)
 		exit(1);
 

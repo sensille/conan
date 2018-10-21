@@ -1,6 +1,6 @@
 set term png size 800,800
 set output "path.png"
-plot "path.csv" using 2:3 title "Path" with lines
+plot "path.csv" using 2:3 title "Path" with points pointtype 8 pointsize 0.05
 set term png size 600,260
 set output "v.png"
 plot "path.csv" using 1:4 title "Velocity" with lines

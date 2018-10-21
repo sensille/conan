@@ -322,7 +322,7 @@ cloth_line(mpfr_t inter_x, mpfr_t inter_y, mpfr_t _vx1, mpfr_t _vy1,
 	mpfr_inits(phi, tmp, pi, x, dx, dy, vx1, vy1, vx2, vy2, rx, ry, NULL);
 	mpfr_inits(mx, my, ml, vl, NULL);
 
-	mpfr_printf("inter (%.2Rf/%.2Rf) v1 (%.2Rf/%.2Rf) v2 (%.2Rf/%.2Rf) v %.5Rf acc %0.5Rf\n",
+	mpfr_printf("inter (%.4Rf/%.4Rf) v1 (%.4Rf/%.4Rf) v2 (%.4Rf/%.4Rf) v %.5Rf acc %0.5Rf\n",
 		inter_x, inter_y, _vx1, _vy1, _vx2, _vy2, v, acc);
 
 	mpfr_const_pi(pi, rnd);
@@ -337,7 +337,7 @@ cloth_line(mpfr_t inter_x, mpfr_t inter_y, mpfr_t _vx1, mpfr_t _vy1,
 	mpfr_div(vx2, _vx2, tmp, rnd);
 	mpfr_div(vy2, _vy2, tmp, rnd);
 
-	mpfr_printf("after normation: %.5Rf %.5Rf %.5Rf %.5Rf\n",
+	mpfr_printf("after normation: %.10Rf %.10Rf %.10Rf %.10Rf\n",
 		vx1, vy1, vx2, vy2);
 	/*
 	 * calculate the angle between the lines
@@ -345,7 +345,7 @@ cloth_line(mpfr_t inter_x, mpfr_t inter_y, mpfr_t _vx1, mpfr_t _vy1,
 	/* dot product for 0-180 deg */
 	mpfr_mul(phi, vx1, vx2, rnd);
 	mpfr_fma(phi, vy1, vy2, phi, rnd);
-	mpfr_printf("phi is %.5Rf\n", phi);
+	mpfr_printf("phi is %.20Rf\n", phi);
 	mpfr_acos(phi, phi, rnd);
 	/* cross product to determine left/right turn */
 	mpfr_mul(tmp, vx1, vy2, rnd);

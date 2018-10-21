@@ -66,10 +66,17 @@ typedef struct _motion {
 	 * callback function to get reference value, for error checking
 	 */
 	uint64_t	m_simsteps;
+
+	/*
+	 * limits
+	 */
+	mpfr_t		m_max_acc;
+	mpfr_t		m_max_v;
 } motion_t;
 
 int
-motion_init(motion_t *mp, kinematics_t kinematics, const char *coeff_file,
+motion_init(motion_t *mp, mpfr_t max_acc, mpfr_t max_v,
+	kinematics_t kinematics, const char *coeff_file,
 	const char *path_file, int simsteps);
 void motion_move_origin(motion_t *mp, mpfr_t e0_x, mpfr_t e0_y);
 void
@@ -192,5 +199,14 @@ static inline line_t *L(path_elem_t *pe) {
 int
 plan(mpfr_t max_acc, mpfr_t max_v, point_t *points, int npoints, path_t **path);
 
+/*
+ * gcode.c
+ */
+int read_gcode(motion_t *m, const char *file);
+
+/*
+ * conan.c
+ */
+int plan_and_execute(motion_t *m, point_t *points, int npoints);
 
 #endif
