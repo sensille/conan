@@ -209,4 +209,9 @@ int read_gcode(motion_t *m, const char *file);
  */
 int plan_and_execute(motion_t *m, point_t *points, int npoints);
 
+/*
+ * b-approx.c
+ */
+void match_path(motion_t *m, point_t *points, int npoints);
+
 #endif
