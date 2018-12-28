@@ -271,10 +271,10 @@ push_points(motion_t *m, point_t *points, int npoints)
 
 	remove_redundant_points(m, points, &npoints);
 	output_path(m, points, npoints);
-#if 1
+#if 0
 	match_path(m, points, npoints);
 #endif
-#if 0
+#if 1
 	plan_and_execute(m, points, npoints);
 #endif
 	printf("pp: -------\n");

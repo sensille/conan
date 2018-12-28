@@ -1,5 +1,8 @@
 #include <math.h>
 #include <stdlib.h>
+#include <string.h>
+#include <cblas.h>
+#include <lapacke.h>
 
 #include "conan.h"
 
@@ -105,6 +108,23 @@ LocalBsplineFitting()
 }
 #endif
 
+void
+print_matrix(const char *name, int rows, int cols, double *m, int lda)
+{
+	int i;
+	int j;
+
+	printf("%s: (%dx%d)\n", name, rows, cols);
+	for (i = 0; i < rows; ++i) {
+		for (j = 0; j < cols; ++j) {
+			printf("%.05f ", m[i * lda + j]);
+		}
+		printf("\n");
+	}
+	printf("----\n");
+}
+
+void NmatCal_1P(double Knotin[2], int Degree, double *Nmat);
 /*
  * file name: SerialBisection.m
  * Description: This function employes parallel method to divide input data
@@ -129,11 +149,21 @@ LocalBsplineFitting()
  */
 //function VectorUX = SerialBisection(DataIn,Degree,CtrlError)
 
+typedef struct _VectorUX {
+	int	StartIdx;
+	int	LeftIdx;
+	double	*Nmatrix;
+	double	*CtrlPointY;
+	double	ErrorMax;
+} VectorUX_t;
+
 void
-SerialBisection(double *DataIn, int rows, int cols, int Degree, double CtrlError)
+SerialBisection(double *DataIn, int rows, int cols, int Degree, double CtrlError,
+	VectorUX_t **VectorUX, int *VectorUXlen)
 {
 	int i;
 	int j;
+	int ret;
 
 // %% Public variables
 // % prepare Amat
@@ -171,7 +201,7 @@ SerialBisection(double *DataIn, int rows, int cols, int Degree, double CtrlError
 
 // Ymat = DataIn(:,2:end);
 	double Ymat[datasize][S - 1];
-	for (i = 1; i < datasize; ++i)
+	for (i = 0; i < datasize; ++i)
 		for (j = 0; j < S - 1; ++j)
 			Ymat[i][j] = DataIn[i * cols + j + 1];
 
@@ -183,7 +213,7 @@ SerialBisection(double *DataIn, int rows, int cols, int Degree, double CtrlError
 	/* Bisecting */
 	int StartIdx = 0;
 	int EndIdx = datasize - 1;
-	int ptr = 0;
+	*VectorUXlen = 0;
 
 // % one piece B-spline fitting
 // % computing Nmatrix
@@ -193,8 +223,9 @@ SerialBisection(double *DataIn, int rows, int cols, int Degree, double CtrlError
 	int Order = Degree + 1;
 
 // Order2= Order*Order;
-	int Order2= Order * Order;
+	int Order2 = Order * Order;
 
+#if 0
 // VectorUX1 = zeros(3+Order*(S-1)+Order*Order, fix(datasize/Order));
 	int ux1 = 3 + Order * (S - 1) + Order2;
 	int ux2 = datasize / Order;
@@ -202,6 +233,7 @@ SerialBisection(double *DataIn, int rows, int cols, int Degree, double CtrlError
 	for (i = 0; i < ux1; ++i)
 		for (j = 0; j < ux2; ++j)
 			VectorUX1[i][j] = 0;
+#endif
 
 	double CtrlPointYsave[Order][S - 1];
 	double Nmatrixsave[Order2];
@@ -217,8 +249,8 @@ SerialBisection(double *DataIn, int rows, int cols, int Degree, double CtrlError
 //     LeftIdx = StartIdx;
 //     RightIdx = EndIdx;
 
-		LeftIdx = StartIdx;
-		RightIdx = EndIdx;
+		int LeftIdx = StartIdx;
+		int RightIdx = EndIdx;
 
 //     Knotin(1)= dataT(StartIdx);
 
@@ -236,7 +268,7 @@ SerialBisection(double *DataIn, int rows, int cols, int Degree, double CtrlError
 //             break;
 //         end
 
-			if (StartIdx + Degree) > datasize) {
+			if ((StartIdx + Degree) >= datasize) {
 				for (i = 0; i < Order; ++i)
 					for (j = 0; j < S - 1; ++j)
 						CtrlPointYsave[i][j] = 0;
@@ -261,17 +293,98 @@ SerialBisection(double *DataIn, int rows, int cols, int Degree, double CtrlError
 //         CtrlP = Nmatrix\Ymatrix;
 
 			/* Spline fitting */
-			double Nmatrix[EndIdx-StartIdx+1][
-//         Nmatrix = Amat(StartIdx:EndIdx,:)*reshape(SPNmat,[Order,Order]);
+			int nm1 = EndIdx - StartIdx + 1;
+			double Nmatrix[nm1][Order];
+			double r_SPNmat[Order][Order];
+			/* reshape */
+			/* XXX TODO reshape kann wahrscheinlich auch direkt
+			 * ueber den aufruf an dgemm gemacht werden */
+			for (i = 0; i < Order; ++i)
+				for (j = 0; j < Order; ++j)
+					r_SPNmat[i][j] = SPNmat[i + j * Order];
+
+print_matrix("Amat", nm1, Order, Amat[StartIdx], Order);
+print_matrix("r_SPNmat", Order, Order, *r_SPNmat, Order);
+
+//	double Amat[datasize][Degree + 1];
+//	double r_SPNmat[Order][Order];
+//	double Nmatrix[nm1][Order];
+
+			/* mult */
+			cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
+				nm1, Order, Order, 1.0,
+				Amat[StartIdx], Order, *r_SPNmat, Order,
+				0, *Nmatrix, Order);
+
+#if 0
+void cblas_dgemm (const CBLAS_LAYOUT Layout, const CBLAS_TRANSPOSE transa, const CBLAS_TRANSPOSE transb, const MKL_INT m, const MKL_INT n, const MKL_INT k, const double alpha, const double *a, const MKL_INT lda, const double *b, const MKL_INT ldb, const double beta, double *c, const MKL_INT ldc);
+#endif
+
+print_matrix("Nmatrix", nm1, Order, *Nmatrix, Order);
+print_matrix("Ymatrix", nm1, S - 1, Ymat[StartIdx], S - 1);
+
 //         Ymatrix = Ymat(StartIdx:EndIdx,:);
 //         CtrlP = Nmatrix\Ymatrix;
-//
-#if 0
+
+			double Ymatrix[nm1][S - 1];
+			for (i = 0; i < nm1; ++i)
+				for (j = 0; j < S - 1; ++j)
+					Ymatrix[i][j] = Ymat[StartIdx + i][j];
+
+			/* Nmatrix gets overwritten, pass in a copy */
+			double Nm_cpy[nm1][Order];
+			for (i = 0; i < nm1; ++i)
+				for (j = 0; j < Order; ++j)
+					Nm_cpy[i][j] = Nmatrix[i][j];
+
+print_matrix("Ymatrix", nm1, S - 1, *Ymatrix, S - 1);
+			ret = LAPACKE_dgels(LAPACK_ROW_MAJOR, 'N',
+				nm1, Order, S - 1, *Nm_cpy, Order, *Ymatrix, S - 1);
+
+			double CtrlP[Order][S - 1];
+			for (i = 0; i < Order; ++i)
+				for (j = 0; j < S - 1; ++j)
+					CtrlP[i][j] = Ymatrix[i][j];
+
+			printf("dgels returned %d\n", ret);
+print_matrix("Nmatrix", nm1, Order, *Nmatrix, Order);
+print_matrix("CtrlP", Order, S - 1, *CtrlP, S - 1);
+
 //         R = Ymatrix-Nmatrix*CtrlP;
 //         R = R.*R;
+			/*
+			 * calculate residual
+			 */
+			double R[nm1][S - 1];
+			cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
+				nm1, S - 1, Order, 1.0,
+				*Nmatrix, Order, *CtrlP, S - 1,
+				0, *R, S - 1);
+
+print_matrix("R (pre, first 10)", 10, S - 1, *R, S - 1);
+			for (i = 0; i < nm1; ++i) {
+				for (j = 0; j < S - 1; ++j) {
+					R[i][j] = Ymat[i+StartIdx][j] - R[i][j];
+					R[i][j] *= R[i][j];
+				}
+			}
+print_matrix("R (post)", nm1, S - 1, *R, S - 1);
 //         Errorcal = max(sum(R,2));
 //         Errorcal = sqrt(Errorcal);
+			double Errorcal = 0;
+			for (i = 0; i < nm1; ++i) {
+				double sum = 0;
+				for (j = 0; j < S - 1; ++j)
+					sum += R[i][j];
+				if (sum > Errorcal)
+					Errorcal = sum;
+			}
+			Errorcal = sqrt(Errorcal);
+
+printf("Errorcal: %.5f\n", Errorcal);
+//
 //         % Fitting error evaluation
+			/* Fitting error evaluation */
 //
 //         success  = 0;
 //         if Errorcal <= CtrlError
@@ -289,8 +402,30 @@ SerialBisection(double *DataIn, int rows, int cols, int Degree, double CtrlError
 //             break;
 //         end
 //         EndIdx = floor((LeftIdx+RightIdx)/2);
-//     end
+			int success = 0;
+printf("round: left %d right %d error %f\n", LeftIdx, RightIdx, Errorcal);
+			if (Errorcal <= CtrlError) {
+printf("saving Errorcal %f\n", Errorcal);
+				success = 1;
+				for (i = 0; i < Order; ++i)
+					for (j = 0; j < S - 1; ++j)
+						CtrlPointYsave[i][j] = CtrlP[i][j];
+				for (i = 0; i < Order2; ++i)
+					Nmatrixsave[i] = SPNmat[i];
+				ErrorMaxsave = Errorcal;
+			}
+			if (success == 1)
+				LeftIdx = EndIdx;
+			else
+				RightIdx = EndIdx;
+			if (RightIdx - LeftIdx <= 1)
+				break;
+			EndIdx = (LeftIdx + RightIdx) / 2;
+printf("new EndIdx(+1): %d\n", EndIdx + 1);
+		}
+printf("ErrorMaxSave: %f\n", ErrorMaxsave);
 //     % fill vector Ux
+			/* fill vector Ux */
 //     VectorUX1(1, ptr) = StartIdx;
 //     VectorUX1(2, ptr) = LeftIdx;
 //     VectorUX1(3:(2+Order*Order), ptr) = Nmatrixsave';
@@ -299,10 +434,22 @@ SerialBisection(double *DataIn, int rows, int cols, int Degree, double CtrlError
 //     ptr = ptr + 1;
 //     StartIdx = LeftIdx+1;
 //     EndIdx = datasize;
+		VectorUX_t *v = calloc(sizeof(**VectorUX), 1);
+		assert(v);
+		v->StartIdx = StartIdx;
+		v->LeftIdx = LeftIdx;
+		v->Nmatrix = malloc(sizeof(double) * Order2);
+		memcpy(v->Nmatrix, Nmatrixsave, sizeof(double) * Order2);
+		v->CtrlPointY = malloc(sizeof(double) * Order * (S - 1));
+		memcpy(v->CtrlPointY, CtrlPointYsave, sizeof(double) * Order * (S - 1));
+		v->ErrorMax = ErrorMaxsave;
+		VectorUX[(*VectorUXlen)++] = v;
+		StartIdx = LeftIdx + 1;
+		EndIdx = datasize - 1;
+	}
 // end
 // VectorUX = VectorUX1(:,1:(ptr-1));
 // end
-#endif
 }
 
 /*
@@ -315,6 +462,7 @@ NmatCal_1P(double Knotin[2], int Degree, double *Nmat)
 	int jj;
 	int kk;
 
+printf("NmatCal_1P: knotin %f/%f, degree %d\n", Knotin[0], Knotin[1], Degree);
 	int Order = Degree + 1;
 	int rownumbers = Order * (Order + 1) * (Order / 2.0);
 
@@ -429,8 +577,106 @@ printf("id10: %d\n", id10);
 
 #ifdef BATEST
 mpfr_rnd_t rnd = MPFR_RNDN;
-int
-main(int argc, char **argv)
+
+double demo[94][3] = {
+	{ 0.0000, 94.550, 112.880 },
+	{ 0.0049, 95.116, 112.436 },
+	{ 0.0083, 95.508, 112.157 },
+	{ 0.0137, 96.174, 111.732 },
+	{ 0.0191, 96.879, 111.377 },
+	{ 0.0246, 97.626, 111.092 },
+	{ 0.0283, 98.135, 110.927 },
+	{ 0.0337, 98.897, 110.722 },
+	{ 0.0418, 100.063, 110.562 },
+	{ 0.2077, 124.151, 109.086 },
+	{ 0.2129, 124.916, 109.076 },
+	{ 0.2264, 126.867, 109.148 },
+	{ 0.2331, 127.845, 109.246 },
+	{ 0.2456, 129.644, 109.542 },
+	{ 0.2507, 130.361, 109.695 },
+	{ 0.2573, 131.289, 109.939 },
+	{ 0.2621, 131.963, 110.149 },
+	{ 0.2742, 133.611, 110.746 },
+	{ 0.2788, 134.238, 111.005 },
+	{ 0.2854, 135.102, 111.406 },
+	{ 0.2903, 135.739, 111.738 },
+	{ 0.3020, 137.206, 112.591 },
+	{ 0.3096, 138.118, 113.212 },
+	{ 0.3273, 140.137, 114.806 },
+	{ 0.3327, 140.732, 115.326 },
+	{ 0.3355, 141.020, 115.621 },
+	{ 0.3493, 142.381, 117.087 },
+	{ 0.3555, 142.955, 117.781 },
+	{ 0.3656, 143.824, 118.966 },
+	{ 0.3723, 144.353, 119.793 },
+	{ 0.3808, 144.951, 120.870 },
+	{ 0.3862, 145.299, 121.579 },
+	{ 0.3916, 145.574, 122.319 },
+	{ 0.3971, 145.772, 123.083 },
+	{ 0.4016, 145.877, 123.730 },
+	{ 0.4043, 145.924, 124.123 },
+	{ 0.4097, 145.978, 124.911 },
+	{ 0.4151, 145.952, 125.700 },
+	{ 0.4202, 145.856, 126.427 },
+	{ 0.4226, 145.793, 126.778 },
+	{ 0.4281, 145.615, 127.547 },
+	{ 0.4335, 145.359, 128.294 },
+	{ 0.4413, 144.864, 129.313 },
+	{ 0.4504, 144.196, 130.465 },
+	{ 0.4574, 143.630, 131.308 },
+	{ 0.4697, 142.536, 132.730 },
+	{ 0.4772, 141.814, 133.545 },
+	{ 0.4941, 140.058, 135.266 },
+	{ 0.4996, 139.466, 135.789 },
+	{ 0.5029, 139.079, 136.079 },
+	{ 0.5192, 137.137, 137.442 },
+	{ 0.5246, 136.468, 137.863 },
+	{ 0.5277, 136.069, 138.072 },
+	{ 0.5445, 133.872, 139.141 },
+	{ 0.5499, 133.145, 139.450 },
+	{ 0.5534, 132.668, 139.608 },
+	{ 0.5702, 130.325, 140.300 },
+	{ 0.5756, 129.558, 140.485 },
+	{ 0.5791, 129.057, 140.562 },
+	{ 0.5965, 126.539, 140.868 },
+	{ 0.6035, 125.534, 140.925 },
+	{ 0.6126, 124.203, 140.914 },
+	{ 0.6154, 123.790, 140.899 },
+	{ 0.7782, 100.149, 139.450 },
+	{ 0.7837, 99.364, 139.362 },
+	{ 0.7891, 98.592, 139.195 },
+	{ 0.7942, 97.888, 138.969 },
+	{ 0.8000, 97.093, 138.671 },
+	{ 0.8055, 96.369, 138.356 },
+	{ 0.8109, 95.680, 137.971 },
+	{ 0.8163, 95.033, 137.517 },
+	{ 0.8217, 94.436, 137.000 },
+	{ 0.8252, 94.084, 136.641 },
+	{ 0.8301, 93.604, 136.118 },
+	{ 0.8355, 93.101, 135.510 },
+	{ 0.8409, 92.661, 134.854 },
+	{ 0.8464, 92.290, 134.157 },
+	{ 0.8511, 92.024, 133.518 },
+	{ 0.8554, 91.812, 132.937 },
+	{ 0.8608, 91.579, 132.182 },
+	{ 0.8662, 91.423, 131.408 },
+	{ 0.8739, 91.339, 130.291 },
+	{ 0.9437, 91.302, 120.141 },
+	{ 0.9516, 91.382, 119.000 },
+	{ 0.9553, 91.460, 118.459 },
+	{ 0.9607, 91.612, 117.684 },
+	{ 0.9688, 91.978, 116.577 },
+	{ 0.9718, 92.146, 116.173 },
+	{ 0.9772, 92.486, 115.460 },
+	{ 0.9826, 92.896, 114.785 },
+	{ 0.9859, 93.173, 114.402 },
+	{ 0.9891, 93.464, 114.025 },
+	{ 0.9946, 93.978, 113.425 },
+	{ 1.0000, 94.550, 112.880 }
+};
+
+void
+nmat_test()
 {
 	double Knotin[2];
 	int Degree = 3;
@@ -440,6 +686,23 @@ main(int argc, char **argv)
 	Knotin[1] = 1;
 
 	NmatCal_1P(Knotin, Degree, Nmat);
+}
+
+int
+main(int argc, char **argv)
+{
+	int len = 0;
+	VectorUX_t *VectorUX[94];
+	int i;
+
+	SerialBisection(*demo, 94, 3, 3, 0.05, VectorUX, &len);
+
+	for (i = 0; i < len; ++i) {
+		printf("[%d]: %d-%d ErrorMax %f\n", i,
+			VectorUX[i]->StartIdx,
+			VectorUX[i]->LeftIdx,
+			VectorUX[i]->ErrorMax);
+	}
 
 	return 0;
 }

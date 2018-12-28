@@ -144,11 +144,11 @@ main(int argc, char **argv)
 	mpfr_t max_acc, max_v;
 	mpfr_inits(max_acc, max_v, NULL);
 
-	mpfr_set_ui(max_acc, 5000, rnd);
+	mpfr_set_ui(max_acc, 2500, rnd);
 	mpfr_set_d(max_v, 120, rnd);
 
 	ret = motion_init(&m, max_acc, max_v, KIN_COREXY,
-		"coeff.txt", "path.csv", 2500);
+		"coeff.txt", "path.csv", 10000);
 	if (ret < 0)
 		exit(1);
 

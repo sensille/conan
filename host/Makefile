@@ -1,6 +1,6 @@
 all: conan serial motion b-approx
 
-VER=28
+VER=29
 SRC = serial.c crc16.c main.c
 HDR = checksum.h serial.h
 C_SRC = motion.c clothoid.c circle.c planner.c line.c conan.c gcode.c b-approx.c
@@ -10,13 +10,13 @@ serial: $(SRC) $(HDR) Makefile
 	gcc -g -Wall $(SRC) -lm -o serial
 
 conan: $(C_SRC) $(C_HDR) Makefile
-	gcc -g -Wall $(C_SRC) -lm  -lgmp -lmpfr -o conan
+	gcc -g -Wall $(C_SRC) -lm  -lgmp -lmpfr -lblas -llapacke -o conan
 
 motion: motion.c Makefile circle.c
-	gcc -g -Wall motion.c circle.c -DTEST -lm  -lgmp -lmpfr -o motion
+	gcc -g -Wall motion.c circle.c -DTEST -lm  -lgmp -lmpfr -lblas -llapacke -o motion
 
 b-approx: b-approx.c Makefile
-	gcc -g -Wall b-approx.c -DBATEST -lm  -lgmp -lmpfr -o b-approx
+	gcc -g -Wall b-approx.c -DBATEST -lm  -lgmp -lmpfr -lblas -llapacke -o b-approx
 
 plot:
 	gnuplot plot.gp

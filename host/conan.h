@@ -55,6 +55,7 @@ typedef struct _motion {
 	 */
 	FILE		*m_coeff;
 	FILE		*m_path;
+	int		m_first_line;
 
 	/*
 	 * scratchpad, we keep them around here to save inits

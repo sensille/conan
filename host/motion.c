@@ -201,6 +201,7 @@ motion_init(motion_t *mp, mpfr_t max_acc, mpfr_t max_v,
 		printf("failed to open output file %s\n", path_file);
 		return -1;
 	}
+	mp->m_first_line = 1;
 
 	/*
 	 * init controller/printer parameters
@@ -824,8 +825,12 @@ mpfr_printf("dev xy %.5Re v %.5Re a %.5Re\n", r_xy, r_v, r_a);
 			}
 
 			if (mp->m_path != NULL) {
+				if (mp->m_first_line)
+					fprintf(mp->m_path,
+						"time,x,y,velocity,acceleration,jerk,xyerror,verror,aerror,rx,ry,rvx,rvy,rax,ray,pvx,pvy,pax,pay,fx,fy,fvx,fvy,fax,fay\n");
+				mp->m_first_line = 0;
 				mpfr_fprintf(mp->m_path,
-					"%.5f %.5Rf %.5Rf %.5Rf %.5Rf %.5Rf | %.5Re %.5Re %.5Re | %.5Re %.5Re %.5Re %.5Re %.5Re %.5Re | %.5Re %.5Re %.5Re %.5Re | %.5Re %.5Re %.5Re %.5Re %.5Re %.5Re\n",
+					"%.5f,%.5Rf,%.5Rf,%.5Rf,%.5Rf,%.5Rf,%.5Re,%.5Re,%.5Re,%.5Re,%.5Re,%.5Re,%.5Re,%.5Re,%.5Re,%.5Re,%.5Re,%.5Re,%.5Re,%.5Re,%.5Re,%.5Re,%.5Re,%.5Re,%.5Re\n",
 					(double)step / mp->m_hz,
 					path_x, path_y, path_v, path_a, path_j,
 					r_xy, r_v, r_a, r_x, r_y, r_vx, r_vy, r_ax, r_ay,
