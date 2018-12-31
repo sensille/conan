@@ -714,9 +714,6 @@ function [OptimalKnot,Error,JoinAngle] = TwoPieceBspineKnotEval1(T,Ymat,Degree,M
 end
 
 #endif
-//%% Gauss Newton solver
-//function [OptimalKnotO,ErrorO,OptimalKnot,Error,Angle] = GNKnotSolver1(T,Ymat,...
-//	Degree,Multiple,SearchRange,StartPoint, GaussNewtonLoopTime)
 
 #undef GNKNOTSOLVER1_DEBUG
 /*
@@ -744,46 +741,30 @@ GNKnotSolver1(
 	double KnotRight = SearchRange[1];
 	int loopknot = ceil(log2(datalength));
 
-//	T1 = T(:,2);
 	double T1[datalength];
 	for (i = 0; i < datalength; ++i)
 		T1[i] = T[i * T_cols + 1];
 
 	double OptimalKnot = StartPoint;
-//	Knot = zeros(1, 2*Order +  Multiple);
 	int Knotsize = 2 * Order + Multiple;
 	double Knot[Knotsize];
 	for (i = 0; i < Knotsize; ++i)
 		Knot[i] = 0;
-//	Knot(1:Order) = T1(1);
 	for (i = 0; i < Order; ++i)
 		Knot[i] = T1[0];
 
-//	Knot(Order+Multiple+1:end) = T1(end);
 	for (i = 0; i < Order; ++i)
 		Knot[Order + Multiple + i] = T1[datalength - 1];
 
-//	Knot1 = Knot;
 	double Knot1[Knotsize];
 	for (i = 0; i < Knotsize; ++i)
 		Knot1[i] = Knot[i];
 
-//	% Derivative
-//	Tcoef = ones(Order,Order);
+	/* Derivative */
 	double Tcoef[Order][Order];
 	for (i = 0; i < Order; ++i)
 		for (j = 0; j < Order; ++j)
 			Tcoef[i][j] = 1;
-
-//	for ii = Degree:-1:1
-//		for cnt = 1:Order
-//			mul = (cnt - (Order -ii));
-//			if mul<0
-//				mul = 0;
-//			end
-//			Tcoef(ii,cnt) = Tcoef(ii+1,cnt)*mul;
-//		end
-//	end
 
 	int ii;
 	for (ii = Degree - 1; ii >= 0; --ii) {
@@ -798,8 +779,6 @@ GNKnotSolver1(
 #ifdef GNKNOTSOLVER1_DEBUG
 print_matrix("Tcoef", Order, Order, *Tcoef, Order);
 #endif
-//
-//	for iterationstep = 1:GaussNewtonLoopTime
 
 	int iterationstep;
 	double deltaXLOld = 0;
@@ -811,25 +790,15 @@ print_matrix("Tcoef", Order, Order, *Tcoef, Order);
 	int checkflag = 0;
 	for (iterationstep = 1; iterationstep <= GaussNewtonLoopTime; ++iterationstep) {
 		/* generate the knot based on the multiple type */
-//		Knot(Order+1:Order+Multiple)= OptimalKnot;
 		for (i = Order; i < Order + Multiple; ++i)
 			Knot[i] = OptimalKnot;
 
-//		OptimalKnot1 = OptimalKnot + Stepsize;
 		double OptimalKnot1 = OptimalKnot + Stepsize;
 
-//		Knot1(Order+1:Order+Multiple)= OptimalKnot1;
 		for (i = Order; i < Order + Multiple; ++i)
 			Knot1[i] = OptimalKnot1;
 
 		/* find knot location */
-//		left = 1;
-//		right = datalength;
-//		left1 = left;
-//		right1 = right;
-//		middle = fix(0.5*(left+right));
-//		middle1 = fix(0.5*(left1+right1));
-
 		int left = 1;
 		int right = datalength;
 		int left1 = left;
@@ -840,21 +809,6 @@ print_matrix("Tcoef", Order, Order, *Tcoef, Order);
 #ifdef GNKNOTSOLVER1_DEBUG
 printf("middles: %d/%d\n", middle, middle1);
 #endif
-//		for cnt = 1:loopknot
-//			if OptimalKnot < T1(middle)
-//				right = middle;
-//			else
-//				left = middle;
-//			end
-//			if OptimalKnot1 < T1(middle1)
-//				right1 = middle1;
-//			else
-//				left1 = middle1;
-//			end
-//			middle = fix(0.5*(left+right));
-//			middle1 = fix(0.5*(left1+right1));
-//		end
-
 		for (cnt = 1; cnt <= loopknot; ++cnt) {
 			if (OptimalKnot < T1[middle - 1])
 				right = middle;
@@ -872,8 +826,6 @@ printf("middles: %d/%d\n", middle, middle1);
 #endif
 
 		/* update Nmat */
-//		Nmat = NewNmatrix(Knot,Degree);
-//		Nmat1 = NewNmatrix(Knot1,Degree);
 		int nmsz = (Degree + 1) * (Degree + 1) * (Knotsize - 1);
 		double Nmat[nmsz];
 		double Nmat1[nmsz];
@@ -885,21 +837,16 @@ print_matrix("Nmat", Order * Order, Knotsize - 1, Nmat, Knotsize - 1);
 print_matrix("Nmat1", Order * Order, Knotsize - 1, Nmat1, Knotsize - 1);
 #endif
 		/* generate the knot1 for G'mat	*/
-//		Tcal = ones(1,Order);
 		double Tcal[Order];
 		for (i = 0; i < Order; ++i)
 			Tcal[i] = 1;
 
-//		for cnt = 2:Order
-//			Tcal(cnt) = Tcal(cnt-1)*OptimalKnot;
-//		end
 		for (cnt = 1; cnt < Order; ++cnt)
 			Tcal[cnt] = Tcal[cnt - 1] * OptimalKnot;
 
 #ifdef GNKNOTSOLVER1_DEBUG
 print_matrix("Tcal(1)", 1, Order, Tcal, 1);
 #endif
-//		Tcal = Tcal.*Tcoef(Multiple,:);
 		for (i =0; i < Order; ++i)
 			Tcal[i] *= Tcoef[Multiple - 1][i];
 #ifdef GNKNOTSOLVER1_DEBUG
@@ -907,7 +854,6 @@ print_matrix("Tcal(2)", 1, Order, Tcal, 1);
 #endif
 
 		/* Compute Basis function base an KnotL and Knot1L */
-//		N = zeros(datalength,Order+Multiple);
 		double N[datalength][Order + Multiple];
 		for (i = 0; i < datalength; ++i)
 			for (j = 0; j < Order + Multiple; ++j)
@@ -916,13 +862,11 @@ print_matrix("Tcal(2)", 1, Order, Tcal, 1);
 #ifdef GNKNOTSOLVER1_DEBUG
 print_matrix("N", datalength, Order + Multiple, *N, Order + Multiple);
 #endif
-//		N1 = N;
 		double N1[datalength][Order + Multiple];
 		for (i = 0; i < datalength; ++i)
 			for (j = 0; j < Order + Multiple; ++j)
 				N1[i][j] = N[i][j];
 
-//		Ncal = reshape(Nmat(:,Order),[Order,Order]);
 		double Ncal[Order][Order];
 		for (i = 0; i < Order; ++i)
 			for (j = 0; j < Order; ++j)
@@ -931,7 +875,6 @@ print_matrix("N", datalength, Order + Multiple, *N, Order + Multiple);
 #ifdef GNKNOTSOLVER1_DEBUG
 print_matrix("Ncal", Order, Order, *Ncal, Order);
 #endif
-//		Sleft = Tcal*Ncal;
 		double Sleft[Order];
 		cblas_dgemv(CblasRowMajor, CblasTrans, Order, Order, 1.0, *Ncal, Order, Tcal, 1, 0, Sleft, 1);
 
@@ -939,7 +882,6 @@ print_matrix("Ncal", Order, Order, *Ncal, Order);
 print_matrix("Sleft", 1, Order, Sleft, 1);
 print_matrix("T", datalength, Order, T, Order);
 #endif
-//		N(1:middle,1:Order) = T(1:middle,:)*Ncal;
 		cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
 			middle, Order, Order, 1.0,
 			T, Order, *Ncal, Order,
@@ -948,14 +890,12 @@ print_matrix("T", datalength, Order, T, Order);
 print_matrix("N", datalength, Order + Multiple, *N, Order + Multiple);
 #endif
 
-//		Ncal = reshape(Nmat(:,Order + Multiple),[Order,Order]);
 		for (i = 0; i < Order; ++i)
 			for (j = 0; j < Order; ++j)
 				Ncal[i][j] = Nmat[(j * Order + i) * (Knotsize - 1) + (Order + Multiple - 1)];
 #ifdef GNKNOTSOLVER1_DEBUG
 print_matrix("Ncal", Order, Order, *Ncal, Order);
 #endif
-//		N(middle+1:end,1+Multiple:(Multiple+Order)) = T(middle+1:end,:)*Ncal;
 		cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
 			datalength - middle, Order, Order, 1.0,
 			&T[middle * Order], Order, *Ncal, Order,
@@ -963,30 +903,24 @@ print_matrix("Ncal", Order, Order, *Ncal, Order);
 #ifdef GNKNOTSOLVER1_DEBUG
 print_matrix("N", datalength, Order + Multiple, *N, Order + Multiple);
 #endif
-//		Sright = Tcal*Ncal;
 		double Sright[Order];
 		cblas_dgemv(CblasRowMajor, CblasTrans, Order, Order, 1.0, *Ncal, Order, Tcal, 1, 0, Sright, 1);
 #ifdef GNKNOTSOLVER1_DEBUG
 print_matrix("Sright", 1, Order, Sright, 1);
 #endif
 
-//
-//		Ncal = reshape(Nmat1(:,Order),[Order,Order]);
 		for (i = 0; i < Order; ++i)
 			for (j = 0; j < Order; ++j)
 				Ncal[i][j] = Nmat1[(j * Order + i) * (Knotsize - 1) + (Order - 1)];
-//		N1(1:middle1,1:Order) = T(1:middle1,:)*Ncal;
 		cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
 			middle1, Order, Order, 1.0,
 			T, Order, *Ncal, Order,
 			0, *N1, Order + Multiple);
 
-//		Ncal = reshape(Nmat1(:,Order + Multiple),[Order,Order]);
 		for (i = 0; i < Order; ++i)
 			for (j = 0; j < Order; ++j)
 				Ncal[i][j] = Nmat1[(j * Order + i) * (Knotsize - 1) + (Order + Multiple - 1)];
 
-//		N1(middle1+1:end,1+Multiple:(Multiple+Order)) = T(middle1+1:end,:)*Ncal;
 		cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
 			datalength - middle, Order, Order, 1.0,
 			&T[middle * Order], Order, *Ncal, Order,
@@ -994,24 +928,6 @@ print_matrix("Sright", 1, Order, Sright, 1);
 #ifdef GNKNOTSOLVER1_DEBUG
 print_matrix("N1", datalength, Order + Multiple, *N, Order + Multiple);
 #endif
-//
-//		if datasize12 == 1
-//			Pctrl = N\Ymat;
-//			Pctrl1 = N1\Ymat;
-//			Gmat = abs(Ymat-N*Pctrl);
-//			Gmat1 = abs(Ymat-N1*Pctrl1);
-//		else
-//			Pctrl = N\Ymat;
-//			Pctrl1 = N1\Ymat;
-//			G = (Ymat-N*Pctrl);
-//			G1 = (Ymat-N1*Pctrl1);
-//			G = G.*G;
-//			G1 = G1.*G1;
-//			Gmat = sum(G,2);
-//			Gmat = sqrt(Gmat);
-//			Gmat1 = sum(G1,2);
-//			Gmat1 = sqrt(Gmat1);
-//		end
 
 		double Pctrl[datalength][datasize12];
 		double Pctrl1[datalength][datasize12];
@@ -1073,27 +989,17 @@ print_matrix("G1", datalength, datasize12, *G1, datasize12);
 		double Gmat[datalength];
 		double Gmat1[datalength];
 		if (datasize12 == 1) {
-//			Gmat = abs(Ymat-N*Pctrl);
-//			Gmat1 = abs(Ymat-N1*Pctrl1);
 			for (i = 0; i < datalength; ++i) {
 				Gmat[i] = abs(G[i][0]);
 				Gmat1[i] = abs(G1[i][0]);
 			}
 		} else {
-//			G = (Ymat-N*Pctrl);
-//			G1 = (Ymat-N1*Pctrl1);
-//			G = G.*G;
-//			G1 = G1.*G1;
 			for (i = 0; i < datalength; ++i) {
 				for (j = 0; j < datasize12; ++j) {
 					G[i][j] *= G[i][j];
 					G1[i][j] *= G1[i][j];
 				}
 			}
-//			Gmat = sum(G,2);
-//			Gmat = sqrt(Gmat);
-//			Gmat1 = sum(G1,2);
-//			Gmat1 = sqrt(Gmat1);
 			for (i = 0; i < datalength; ++i) {
 				Gmat[i] = 0;
 				Gmat1[i] = 0;
@@ -1110,8 +1016,7 @@ print_matrix("Gmat", 1, datalength, Gmat, datalength);
 print_matrix("Gmat1", 1, datalength, Gmat1, datalength);
 #endif
 
-//		% Compute Jacobian matrix G'mat	'
-//		Jmat = (Gmat1-Gmat)/Stepsize; % size Xlength x 1
+		/* Compute Jacobian matrix G'mat */
 		double Jmat[datalength];
 		for (i = 0; i < datalength; ++i)
 			Jmat[i] = (Gmat1[i] - Gmat[i]) / Stepsize;
@@ -1120,7 +1025,6 @@ print_matrix("Gmat1", 1, datalength, Gmat1, datalength);
 print_matrix("Jmat", 1, datalength, Jmat, datalength);
 #endif
 
-//		deltaX = (Jmat'*Jmat)^-1*Jmat'*Gmat;
 		double d1 = 0;
 		double d2 = 0;
 		for (i = 0; i < datalength; ++i) {
@@ -1141,24 +1045,16 @@ printf("deltaX %f\n", deltaX);
 		}
 		OptimalKnot = OptimalKnot - deltaX;
 		/* calculating angle */
-//		Sleft1 = Sleft*Pctrl(1:Order,:);
 		double Sleft1[datasize12];
 		cblas_dgemv(CblasRowMajor, CblasTrans, Order, datasize12, 1.0, *Pctrl, datasize12, Sleft, 1, 0, Sleft1, 1);
 #ifdef GNKNOTSOLVER1_DEBUG
 print_matrix("Sleft1", 1, datasize12, Sleft1, datasize12);
 #endif
-//		Sright1 = Sright*Pctrl(Multiple + 1:Multiple+Order,:);
 		double Sright1[datasize12];
 		cblas_dgemv(CblasRowMajor, CblasTrans, Order, datasize12, 1.0, &Pctrl[Multiple][0], datasize12, Sright, 1, 0, Sright1, 1);
 #ifdef GNKNOTSOLVER1_DEBUG
 print_matrix("Sright1", 1, datasize12, Sright1, datasize12);
 #endif
-//		if datasize12 == 1
-//			JoinAngle = abs(atan(Sright1/OptimalKnot)-atan(Sleft1/OptimalKnot));
-//		else
-//			CosPhi = dot(Sleft1,Sright1)/(norm(Sleft1)*norm(Sright1));
-//			JoinAngle = acos(CosPhi);
-//		end
 		double JoinAngle;
 		if (datasize12 == 1) {
 			JoinAngle = abs(atan(Sright1[0]/OptimalKnot) - atan(Sleft1[0]/OptimalKnot));
@@ -1186,7 +1082,6 @@ printf("JoinAngle %f\n", JoinAngle);
 			OptimalKnot = KnotLeft;
 		if (OptimalKnot > KnotRight)
 			OptimalKnot = KnotRight;
-//		Error = max(abs(Gmat));
 		Error = 0;
 		for (i = 0; i < datalength; ++i) {
 			double a = fabs(Gmat[i]);
