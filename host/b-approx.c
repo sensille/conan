@@ -555,9 +555,6 @@ printf("id10: %d\n", id10);
  * Date: 19-July-2016
  * Author: Dvthan
  */
-//function [OptimalKnotOut,MultipleOut] = TwoPieceOptimalKnotSolver1(DataIn,DataKnot,...
-//	Degree,MinAngle,MaxSmooth,N0ScanForDiscontinuosCase,GaussNewtonLoopTime,ScanKnot)
-
 #undef TWOPIECEOPTIMALKNOTSOLVER1_DEBUG
 static void
 TwoPieceOptimalKnotSolver1(double *DataIn, int m, int n, int DataKnot, int Degree,
@@ -571,24 +568,18 @@ TwoPieceOptimalKnotSolver1(double *DataIn, int m, int n, int DataKnot, int Degre
 	int cnt;
 	int Order = Degree + 1;
 
-//	T1 = DataIn(:,1);
 	double T1[m];
 	for (i = 0; i < m; ++i)
 		T1[i] = DataIn[i * n];
 
-//	T = zeros(numel(T1),Order);
 	double T[m][Order];
 	for (i = 0; i < m; ++i)
 		for (j = 0; j < Order; ++j)
 			T[i][j] = 0;
 
-//	T(:,1) = 1;
 	for (i = 0; i < m; ++i)
 		T[i][0] = 1;
 
-//	for cnt = 2:Order
-//		T(:,cnt) = T(:,cnt-1).*T1;
-//	end
 	for (cnt = 1; cnt < Order; ++cnt)
 		for (i = 0; i < m; ++i)
 			T[i][cnt] = T[i][cnt - 1] * T1[i];
@@ -596,8 +587,6 @@ TwoPieceOptimalKnotSolver1(double *DataIn, int m, int n, int DataKnot, int Degre
 print_matrix("T", m, Order, *T, Order);
 #endif
 
-
-//	Ymat = DataIn(:,2:end);
 	double Ymat[m][n - 1];
 	for (i = 0; i < m; ++i)
 		for (j = 0; j < n - 1; ++j)
@@ -605,13 +594,7 @@ print_matrix("T", m, Order, *T, Order);
 #ifdef TWOPIECEOPTIMALKNOTSOLVER1_DEBUG
 print_matrix("Ymat", m, n - 1, *Ymat, n - 1);
 #endif
-//
-//	idx01 = DataKnot;
-//	idx10 = DataKnot + 1;
-//	idx00 = 1;
-//	idx11 = m;
-//	DP1 = idx01 - idx00 - Degree;
-//	DP2 = idx11 - idx10 - Degree;
+
 	int idx01 = DataKnot - 1;
 	int idx10 = DataKnot;
 	int idx00 = 0;
@@ -622,12 +605,6 @@ print_matrix("Ymat", m, n - 1, *Ymat, n - 1);
 printf("Degree %d idx00 %d idx01 %d idx10 %d idx11 %d DP1 %d DP2 %d\n", Degree, idx00, idx01, idx10, idx11, DP1, DP2);
 #endif
 
-//	LeftSearch = zeros(1,Order);
-//	RightSearch = zeros(1,Order);
-//	for cnt = 1:Order
-//		LeftSearch(1,cnt) = min(DP1,3)+Degree-cnt;
-//		RightSearch(1,cnt) = min(DP2,3)+Degree-cnt;
-//	end
 	int LeftSearch[Order];
 	int RightSearch[Order];
 	for (cnt = 0; cnt < Order; ++cnt) {
@@ -637,11 +614,7 @@ printf("Degree %d idx00 %d idx01 %d idx10 %d idx11 %d DP1 %d DP2 %d\n", Degree, 
 printf("LeftSearch %d RightSearch %d\n", LeftSearch[cnt], RightSearch[cnt]);
 #endif
 	}
-//	%% Uniform scanning the lowest error
-//	OptimalKnotSave = zeros(1,Order);
-//	ErrorSave = zeros(1,Order);
-//	AngleSave = zeros(1,Order);
-//	SearchRangeOut = zeros(2,Order);
+	/* Uniform scanning the lowest error */
 	double OptimalKnotSave[Order];
 	double ErrorSave[Order];
 	double AngleSave[Order];
@@ -653,18 +626,12 @@ printf("LeftSearch %d RightSearch %d\n", LeftSearch[cnt], RightSearch[cnt]);
 		SearchRangeOut[0][i] = 0;
 		SearchRangeOut[1][i] = 0;
 	}
-//	MultipleMax = Order;
 	int MultipleMax = Order;
 
-//	for ii = Order:-1:1
 	for (ii = Order; ii >= 1; --ii) {
-
-//		LeftSearch1 = LeftSearch(ii);
-//		RightSearch1 = RightSearch(ii);
 		int LeftSearch1 = LeftSearch[ii - 1];
 		int RightSearch1 = RightSearch[ii - 1];
 
-//		SearchRange = [DataIn(max(idx01-LeftSearch1,1),1),DataIn(min(idx10+RightSearch1,idx11),1)];
 		double SearchRange[2];
 		SearchRange[0] = DataIn[(max(idx01 - LeftSearch1, 0)) * n];
 		SearchRange[1] = DataIn[(min(idx10 + RightSearch1, idx11)) * n];
@@ -672,17 +639,13 @@ printf("LeftSearch %d RightSearch %d\n", LeftSearch[cnt], RightSearch[cnt]);
 printf("SearchRange: %f-%f\n", SearchRange[0], SearchRange[1]);
 #endif
 
-//		if (SearchRange(2)>SearchRange(1))
 		if (SearchRange[1] > SearchRange[0]) {
-//			ExpandRange = max(ceil(0.5*(N0ScanForDiscontinuosCase+1)/(LeftSearch1+RightSearch1)),1);
 			int ExpandRange = max(ceil(0.5 * (N0ScanForDiscontinuosCase + 1) / (LeftSearch1 + RightSearch1)), 1);
 #ifdef TWOPIECEOPTIMALKNOTSOLVER1_DEBUG
 printf("ExpandRange %d\n", ExpandRange);
 #endif
-//			Multiple = ii;
-			int Multiple = ii;
 
-//			KnotLocation = SearchRange(1):((SearchRange(2)-SearchRange(1))/N0ScanForDiscontinuosCase):SearchRange(2);
+			int Multiple = ii;
 			int numKnotLocation = N0ScanForDiscontinuosCase + 1;
 			double KnotLocation[numKnotLocation];
 			for (i = 0; i <= numKnotLocation; ++i)
@@ -691,12 +654,6 @@ printf("ExpandRange %d\n", ExpandRange);
 print_matrix("KnotLocation", 1, numKnotLocation, KnotLocation, numKnotLocation);
 #endif
 
-//			DisErrorSave = zeros(1,numel(KnotLocation));
-//			DisAnglePsave = zeros(1,numel(KnotLocation));
-//			for cnt = 1:numel(KnotLocation)
-//				StartPoint = KnotLocation(cnt);
-//				[~,DisErrorSave(cnt),DisAnglePsave(cnt)] = TwoPieceBspineKnotEval1(T,Ymat,Degree,Multiple,StartPoint);
-//			end
 			double DisErrorSave[numKnotLocation];
 			double DisAnglePsave[numKnotLocation];
 			for (cnt = 0; cnt < numKnotLocation; ++cnt) {
@@ -713,10 +670,6 @@ print_matrix("DisErrorSave", 1, numKnotLocation, DisErrorSave, numKnotLocation);
 print_matrix("DisAnglePsave", 1, numKnotLocation, DisAnglePsave, numKnotLocation);
 #endif
 
-//			% compute fourfold knot position
-//			KnotLocation = KnotLocation(~isnan(DisAnglePsave));
-//			DisErrorSave = DisErrorSave(~isnan(DisAnglePsave));
-//			DisAnglePsave = DisAnglePsave(~isnan(DisAnglePsave));
 			/* compute fourfold knot position */
 			for (i = 0, j = 0; i < numKnotLocation; ++i) {
 				if (isnan(DisAnglePsave[i]))
@@ -729,10 +682,7 @@ print_matrix("DisAnglePsave", 1, numKnotLocation, DisAnglePsave, numKnotLocation
 			numKnotLocation = j;
 
 			/* Select region */
-//			if ii == Order
 			if (ii == Order) {
-//				CtrlError1 = min(DisErrorSave)+1e-10;
-//				disIdx = find(DisErrorSave<CtrlError1);
 				double CtrlError1 = DisErrorSave[0];
 				for (i = 1; i < numKnotLocation; ++i)
 					if (DisErrorSave[i] < CtrlError1)
@@ -748,24 +698,15 @@ for (i = 0; i < numDisIdx; ++i) printf(" %d", disIdx[i]);
 printf("\n");
 #endif
 
-//				MidPosition = round(0.5*(min(disIdx)+max(disIdx)));
 				int MidPosition = round(0.5 * (disIdx[0] + disIdx[numDisIdx - 1]));
 #ifdef TWOPIECEOPTIMALKNOTSOLVER1_DEBUG
 printf("MidPosition: %d\n", MidPosition);
 #endif
 
-//				%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-//				SearchRangeOut(:,ii) = [KnotLocation(max(disIdx(1)-1,1));KnotLocation(min(disIdx(end)+1,numel(KnotLocation)))];
 				SearchRangeOut[0][ii - 1] = KnotLocation[max(disIdx[0] - 1, 0)];
 				SearchRangeOut[1][ii - 1] = KnotLocation[min(disIdx[numDisIdx - 1] + 1, numKnotLocation - 1)];
-
-//				OptimalKnotSave(ii) = KnotLocation(MidPosition);
 				OptimalKnotSave[ii - 1] = KnotLocation[MidPosition];
-
-//				AngleSave(ii) = DisAnglePsave(MidPosition);
 				AngleSave[ii - 1] = DisAnglePsave[MidPosition];
-
-//				ErrorSave(ii) = DisErrorSave(MidPosition);
 				ErrorSave[ii - 1] = DisErrorSave[MidPosition];
 
 #ifdef TWOPIECEOPTIMALKNOTSOLVER1_DEBUG
@@ -774,13 +715,6 @@ printf("range %f-%f knot %f angle %f error %f\n",
 	OptimalKnotSave[ii - 1], AngleSave[ii - 1], ErrorSave[ii - 1]);
 #endif
 
-//				if ~ScanKnot
-//					OptimalKnotSave(1:Degree) = OptimalKnotSave(ii);
-//					for cnt = 1:Degree
-//						SearchRangeOut(:,cnt) = [KnotLocation(max(disIdx(1)-1,1));KnotLocation(min(disIdx(end)+1,numel(KnotLocation)))];
-//					end
-//					break;
-//				end
 				if (!ScanKnot) {
 					for (i = 0; i < Degree; ++i) {
 						OptimalKnotSave[i] = KnotLocation[MidPosition];
@@ -790,11 +724,6 @@ printf("range %f-%f knot %f angle %f error %f\n",
 					break;
 				}
 			} else {
-//				[MinError,disIdx] = min(DisErrorSave);
-//				SearchRangeOut(:,ii) = [KnotLocation(max(disIdx-ExpandRange,1));KnotLocation(min(disIdx+ExpandRange,numel(KnotLocation)))];
-//				OptimalKnotSave(ii) = KnotLocation(disIdx);
-//				AngleSave(ii) = DisAnglePsave(disIdx);
-//				ErrorSave(ii) = MinError;
 				double MinError = DisErrorSave[0];
 				int disIdx = 0;
 				for (i = 1; i < numKnotLocation; ++i) {
@@ -812,7 +741,6 @@ printf("range %f-%f knot %f angle %f error %f\n",
 			MultipleMax = MultipleMax - 1;
 			ScanKnot = 1;
 		}
-//	end
 	}
 #ifdef TWOPIECEOPTIMALKNOTSOLVER1_DEBUG
 print_matrix("SearchRangeOut", 2, Order, *SearchRangeOut, Order);
@@ -820,13 +748,7 @@ print_matrix("OptimalKnotSave", 1, Order, OptimalKnotSave, Order);
 print_matrix("AngleSave", 1, Order, AngleSave, Order);
 print_matrix("ErrorSave", 1, Order, ErrorSave, Order);
 #endif
-//	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-//	for cnt = 1:(min(MultipleMax,Degree))
 	for (cnt = 0; cnt < min(MultipleMax, Degree); ++cnt) {
-
-//		StartPoint = OptimalKnotSave(cnt);
-//		SearchRange = SearchRangeOut(:,cnt)';			%'
-//		Multiple = cnt;
 		double StartPoint = OptimalKnotSave[cnt];
 		double SearchRange[2];
 		SearchRange[0] = SearchRangeOut[0][cnt];
@@ -837,20 +759,13 @@ print_matrix("ErrorSave", 1, Order, ErrorSave, Order);
 printf("StartPoint %f SearchRange %f-%f Multiple %d\n", StartPoint, SearchRange[0], SearchRange[1], Multiple);
 #endif
 
-//		[OptimalKnotO,ErrorO,~,~,Angle] = GNKnotSolver1(T,Ymat,...
-//		Degree,Multiple,SearchRange,StartPoint, GaussNewtonLoopTime);
-
 		double OptimalKnotO;
 		double ErrorO;
 		double Angle;
 		GNKnotSolver1(*T, m, *Ymat, n - 1, Degree, Multiple, SearchRange, StartPoint, GaussNewtonLoopTime,
 			&OptimalKnotO, &ErrorO, NULL, NULL, &Angle);
 
-//		if (ScanKnot)&&(MultipleMax==Order)
 		if ((ScanKnot) && (MultipleMax == Order)) {
-
-//			StartPoint = OptimalKnotSave(Order);
-//			SearchRange = SearchRangeOut(:,Order)';		%'
 			StartPoint = OptimalKnotSave[Order - 1];
 			SearchRange[0] = SearchRangeOut[0][Order - 1];
 			SearchRange[1] = SearchRangeOut[1][Order - 1];
@@ -858,25 +773,14 @@ printf("StartPoint %f SearchRange %f-%f Multiple %d\n", StartPoint, SearchRange[
 			double OptimalKnotOs;
 			double ErrorOs;
 			double Angles;
-//			[OptimalKnotOs,ErrorOs,~,~,Angles] = GNKnotSolver1(T,Ymat,...
-//			Degree,Multiple,SearchRange,StartPoint, GaussNewtonLoopTime);
 			GNKnotSolver1(*T, m, *Ymat, n - 1, Degree, Multiple, SearchRange, StartPoint, GaussNewtonLoopTime,
 				&OptimalKnotOs, &ErrorOs, NULL, NULL, &Angles);
-
-//			if ErrorOs<ErrorO
-//				OptimalKnotO = OptimalKnotOs;
-//				ErrorO = ErrorOs;
-//				Angle = Angles;
-//			end
 			if (ErrorOs < ErrorO) {
 				OptimalKnotO = OptimalKnotOs;
 				ErrorO = ErrorOs;
 				Angle = Angles;
 			}
 		}
-//		OptimalKnotSave(cnt) = OptimalKnotO;
-//		ErrorSave(cnt) = ErrorO;
-//		AngleSave(cnt) = Angle;
 		OptimalKnotSave[cnt] = OptimalKnotO;
 		ErrorSave[cnt] = ErrorO;
 		AngleSave[cnt] = Angle;
@@ -888,10 +792,6 @@ print_matrix("AngleSave", 1, Order, AngleSave, Order);
 #endif
 
 	/* decide multiple knot */
-//	SmoothOutput = Degree - MaxSmooth;
-//	SmoothOutput = min(SmoothOutput,MultipleMax);
-//	AngleOut = AngleSave(1:SmoothOutput);
-//	idx1 = find(AngleOut>MinAngle);
 	int SmoothOutput = min(Degree - MaxSmooth, MultipleMax);
 	double AngleOut[SmoothOutput];
 	for (i = 0; i < SmoothOutput; ++i)
@@ -905,11 +805,7 @@ print_matrix("AngleSave", 1, Order, AngleSave, Order);
 
 	double OptimalKnotOut = 0;
 	int MultipleOut = 0;
-//
-//	if numel(idx1)
 	if (numIdx1 > 0) {
-//		ErrorOut = ErrorSave(idx1);
-//		[~, minidx] = min(ErrorOut);
 		double ErrorOut = ErrorSave[0];
 		int minidx = 0;
 		for (i = 1; i < numIdx1; ++i) {
@@ -918,19 +814,12 @@ print_matrix("AngleSave", 1, Order, AngleSave, Order);
 				minidx = i;
 			}
 		}
-//		OptimalIdx = idx1(minidx);
 		int OptimalIdx = idx1[minidx];
 
-//
-//		OptimalKnotOut = OptimalKnotSave(OptimalIdx);
-//		MultipleOut = OptimalIdx;
 		OptimalKnotOut = OptimalKnotSave[OptimalIdx];
 		MultipleOut = OptimalIdx + 1;
 	} else {
 		/* eliminate the knot */
-//		[~,idx] = max(AngleOut);
-//		OptimalKnotOut = OptimalKnotSave(idx);
-//		MultipleOut = idx;
 		double MaxAngle = AngleOut[0];
 		int idx = 0;
 		for (i = 1; i < numIdx1; ++i) {
@@ -953,8 +842,6 @@ printf("OptimalKnotOut %f MultipleOut %d\n", OptimalKnotOut, MultipleOut);
 
 #undef KNOTEVAL_DEBUG
 /* Find error of a knot */
-//function [OptimalKnot,Error,JoinAngle] = TwoPieceBspineKnotEval1(T,Ymat,Degree,Multiple,StartPoint)
-
 static void
 TwoPieceBspineKnotEval1(double *T, int datalength, double *Ymat, int datasize12,
 	int Degree, int Multiple, double StartPoint,
@@ -966,22 +853,9 @@ TwoPieceBspineKnotEval1(double *T, int datalength, double *Ymat, int datasize12,
 	double OptimalKnot = StartPoint;
 	int Order = Degree + 1;
 
-//	T1 = T(:,2);
 	double T1[datalength];
 	for (i = 0; i < datalength; ++i)
 		T1[i] = T[i * Order + 1];
-
-//	% Derivative
-//	Tcoef = ones(Order,Order);
-//	for ii = Degree:-1:1
-//		for cnt = 1:Order
-//			mul = (cnt - (Order -ii));
-//			if mul<0
-//				mul = 0;
-//			end
-//			Tcoef(ii,cnt) = Tcoef(ii+1,cnt)*mul;
-//		end
-//	end
 
 	/* Derivative */
 	double Tcoef[Order][Order];
@@ -999,11 +873,6 @@ TwoPieceBspineKnotEval1(double *T, int datalength, double *Ymat, int datasize12,
 		}
 	}
 
-//	Tcal = ones(1,Order);
-//	for cnt = 2:Order
-//		Tcal(cnt) = Tcal(cnt-1)*OptimalKnot;
-//	end
-//	Tcal = Tcal.*Tcoef(Multiple,:);
 	double Tcal[Order];
 	for (i = 0; i < Order; ++i)
 		Tcal[i] = 1;
@@ -1019,12 +888,6 @@ print_matrix("Tcal(1)", 1, Order, Tcal, 1);
 print_matrix("Tcal(2)", 1, Order, Tcal, 1);
 #endif
 
-//	% B-spline evaluation
-//	Knot = zeros(1,2*Order+Multiple);
-//	Knot(1:Order) = T1(1);
-//	Knot((Order+Multiple + 1):end) = T1(end);
-//	Knot((Order+1):(Order+Multiple))= OptimalKnot;
-
 	int Knotsize = 2 * Order + Multiple;
 	double Knot[Knotsize];
 	for (i = 0; i < Knotsize; ++i)
@@ -1036,18 +899,6 @@ print_matrix("Tcal(2)", 1, Order, Tcal, 1);
 	for (i = 0; i < Order; ++i)
 		Knot[Order + Multiple + i] = T1[datalength - 1];
 
-//	left = 1;
-//	right = datalength;
-//	middle = fix(0.5*(left+right));
-//	loopknot = ceil(log2(datalength));
-//	for cnt = 1:loopknot
-//		if OptimalKnot < T1(middle)
-//			right = middle;
-//		else
-//			left = middle;
-//		end
-//		middle = fix(0.5*(left+right));
-//	end
 	int left = 1;
 	int right = datalength;
 	int middle = (left + right) / 2;
@@ -1060,7 +911,6 @@ print_matrix("Tcal(2)", 1, Order, Tcal, 1);
 		middle = (left + right) / 2;
 	}
 
-//	Nmat = NewNmatrix(Knot,Degree);
 	/* update Nmat */
 	int nmsz = (Degree + 1) * (Degree + 1) * (Knotsize - 1);
 	double Nmat[nmsz];
@@ -1070,7 +920,6 @@ print_matrix("Tcal(2)", 1, Order, Tcal, 1);
 	 * generate the knot1 for G'mat
 	 * Compute Basis function base an KnotL and Knot1L
 	 */
-//	N = zeros(datalength,Order+Multiple);
 	double N[datalength][Order + Multiple];
 	for (i = 0; i < datalength; ++i)
 		for (j = 0; j < Order + Multiple; ++j)
@@ -1079,7 +928,6 @@ print_matrix("Tcal(2)", 1, Order, Tcal, 1);
 #ifdef KNOTEVAL_DEBUG
 print_matrix("N", datalength, Order + Multiple, *N, Order + Multiple);
 #endif
-//	Ncal = reshape(Nmat(:,Order),[Order,Order]);
 	double Ncal[Order][Order];
 	for (i = 0; i < Order; ++i)
 		for (j = 0; j < Order; ++j)
@@ -1088,7 +936,6 @@ print_matrix("N", datalength, Order + Multiple, *N, Order + Multiple);
 #ifdef KNOTEVAL_DEBUG
 print_matrix("Ncal", Order, Order, *Ncal, Order);
 #endif
-//	Sleft = Tcal*Ncal;
 	double Sleft[Order];
 	cblas_dgemv(CblasRowMajor, CblasTrans, Order, Order, 1.0, *Ncal, Order, Tcal, 1, 0, Sleft, 1);
 
@@ -1096,7 +943,6 @@ print_matrix("Ncal", Order, Order, *Ncal, Order);
 print_matrix("Sleft", 1, Order, Sleft, 1);
 #endif
 
-//	N(1:middle,1:Order) = T(1:middle,:)*Ncal;
 	cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
 		middle, Order, Order, 1.0,
 		T, Order, *Ncal, Order,
@@ -1105,7 +951,6 @@ print_matrix("Sleft", 1, Order, Sleft, 1);
 print_matrix("N", datalength, Order + Multiple, *N, Order + Multiple);
 #endif
 
-//	Ncal = reshape(Nmat(:,Order + Multiple),[Order,Order]);
 	for (i = 0; i < Order; ++i)
 		for (j = 0; j < Order; ++j)
 			Ncal[i][j] = Nmat[(j * Order + i) * (Knotsize - 1) + (Order + Multiple - 1)];
@@ -1113,14 +958,12 @@ print_matrix("N", datalength, Order + Multiple, *N, Order + Multiple);
 print_matrix("Ncal", Order, Order, *Ncal, Order);
 #endif
 
-//	Sright = Tcal*Ncal;
 	double Sright[Order];
 	cblas_dgemv(CblasRowMajor, CblasTrans, Order, Order, 1.0, *Ncal, Order, Tcal, 1, 0, Sright, 1);
 #ifdef KNOTEVAL_DEBUG
 print_matrix("Sright", 1, Order, Sright, 1);
 #endif
 
-//	N(middle+1:end,1+Multiple:(Multiple+Order)) = T(middle+1:end,:)*Ncal;
 	cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
 		datalength - middle, Order, Order, 1.0,
 		&T[middle * Order], Order, *Ncal, Order,
@@ -1128,17 +971,6 @@ print_matrix("Sright", 1, Order, Sright, 1);
 #ifdef KNOTEVAL_DEBUG
 print_matrix("N", datalength, Order + Multiple, *N, Order + Multiple);
 #endif
-
-//	if datasize12 == 1
-//		Pctrl = N(:,1:(Multiple+Order))\Ymat;
-//		Gmat = abs(Ymat-N(:,1:(Multiple+Order))*Pctrl);
-//	else
-//		Pctrl = N(:,1:(Multiple+Order))\Ymat;
-//		G = (Ymat-N(:,1:(Multiple+Order))*Pctrl);
-//		G = G.*G;
-//		Gmat = sum(G,2);
-//		Gmat = sqrt(Gmat);
-//	end
 
 	double Pctrl[datalength][datasize12];
 	double G[datalength][datasize12];
@@ -1189,7 +1021,6 @@ print_matrix("G", datalength, datasize12, *G, datasize12);
 print_matrix("Gmat", 1, datalength, Gmat, datalength);
 #endif
 
-//	Error = max(abs(Gmat));
 	double Error = 0;
 	for (i = 0; i < datalength; ++i) {
 		double a = fabs(Gmat[i]);
@@ -1200,8 +1031,6 @@ print_matrix("Gmat", 1, datalength, Gmat, datalength);
 printf("Error: %f\n", Error);
 #endif
 
-//	%% Calculating join angle
-//	Sleft1 = Sleft*Pctrl(1:Order,:);
 	/* calculating angle */
 	double Sleft1[datasize12];
 	cblas_dgemv(CblasRowMajor, CblasTrans, Order, datasize12, 1.0, *Pctrl, datasize12, Sleft, 1, 0, Sleft1, 1);
@@ -1209,20 +1038,12 @@ printf("Error: %f\n", Error);
 print_matrix("Sleft1", 1, datasize12, Sleft1, datasize12);
 #endif
 
-//	Sright1 = Sright*Pctrl(Multiple + 1:Multiple+Order,:);
 	double Sright1[datasize12];
 	cblas_dgemv(CblasRowMajor, CblasTrans, Order, datasize12, 1.0, &Pctrl[Multiple][0], datasize12, Sright, 1, 0, Sright1, 1);
 #ifdef KNOTEVAL_DEBUG
 print_matrix("Sright1", 1, datasize12, Sright1, datasize12);
 #endif
 
-//	if datasize12 == 1
-//		JoinAngle = abs(atan(Sright1/OptimalKnot)-atan(Sleft1/OptimalKnot));
-//	else
-//		CosPhi = dot(Sleft1,Sright1)/(norm(Sleft1)*norm(Sright1));
-//		JoinAngle = acos(CosPhi);
-//	end
-//	JoinAngle = JoinAngle*180/pi();
 	double JoinAngle;
 	if (datasize12 == 1) {
 		JoinAngle = abs(atan(Sright1[0]/OptimalKnot) - atan(Sleft1[0]/OptimalKnot));
@@ -1814,8 +1635,6 @@ printf("id10: %d\n", id10);
 
 }
 
-//function [BSpline,Error,FittedData] = BsplineFitting(OptimalKnotOut,MultipleOut,DataIn,Degree)
-
 #undef BSPLINEFITTING_DEBUG
 static void
 BsplineFitting(double *OptimalKnotOut,int *MultipleOut, int nKnotsOut, double *DataIn, int dm, int dn, int Degree,
@@ -1830,10 +1649,7 @@ BsplineFitting(double *OptimalKnotOut,int *MultipleOut, int nKnotsOut, double *D
 	int cnt;
 	int ret;
 
-	//Order = Degree + 1;
 	int Order = Degree + 1;
-
-	//MultipleKnot = MultipleOut(MultipleOut>0);
 	double MultipleKnot[nKnotsOut];
 	double Knotout[nKnotsOut];
 	int nMultipleKnots = 0;
@@ -1845,14 +1661,8 @@ BsplineFitting(double *OptimalKnotOut,int *MultipleOut, int nKnotsOut, double *D
 		}
 	}
 
-	//[N,~] = size(DataIn);
 	int N = dm;
 
-	//Amat = zeros(N,Order);
-	//Amat(:,1) = 1;
-	//for ii = 2:Order
-	//    Amat(:,ii) = Amat(:,ii-1).*DataIn(:,1);
-	//end
 	double Amat[N][Order];
 	for (i = 0; i < N; ++i)
 		for (j = 0; j < Order; ++j)
@@ -1866,7 +1676,6 @@ BsplineFitting(double *OptimalKnotOut,int *MultipleOut, int nKnotsOut, double *D
 print_matrix("Amat", N, Order, *Amat, Order);
 #endif
 
-	//Ymat = DataIn(:,2:end);
 	double Ymat[N][dn - 1];
 	for (i = 0; i < N; ++i)
 		for (j = 0; j < dn - 1; ++j)
@@ -1875,17 +1684,6 @@ print_matrix("Amat", N, Order, *Amat, Order);
 print_matrix("Ymat", N, dn - 1, *Ymat, dn - 1);
 #endif
 
-	//
-	//Knot = zeros(1,2*Order + sum(MultipleKnot));
-	//Knot(1:Order) = DataIn(1,1);
-	//Knot(end-Degree:end) = DataIn(end,1);
-	//jj = Order + 1;
-	//for ii = 1:numel(OptimalKnotOut)
-	//    for kk = 1:MultipleOut(ii)
-	//        Knot(jj) = OptimalKnotOut(ii);
-	//        jj = jj + 1;
-	//    end
-	//end
 	int nKnots = 2 * Order;
 	for (i = 0; i < nMultipleKnots; ++i)
 		nKnots += MultipleKnot[i];
@@ -1908,50 +1706,32 @@ print_matrix("Knot", 1, nKnots, Knot, nKnots);
 	 * B-spline fitting
 	 */
 	/* find knot index */
-	//Knotout = OptimalKnotOut(MultipleOut>0);	# already done above
-	//looptime = numel(Knotout);
-	//Numloop = ceil(log2(N));
 	int looptime = nMultipleKnots;
 	int Numloop = ceil(log2(N));
 #ifdef BSPLINEFITTING_DEBUG
 printf("looptime %d Numloop %d\n", looptime, Numloop);
 #endif
 
-	//InteriorKnotIdx = zeros(looptime,1);
 	int InteriorKnotIdx[looptime];
 	for (i = 0; i < looptime; ++i)
 		InteriorKnotIdx[i] = 0;
 
-	//for k=1:looptime
 	for (k = 0; k < looptime; ++k) {
-		//    stidx = 1;
-		//    endidx = N;
-		//    mididx = fix(0.5*(stidx+endidx));
 		int stidx = 0;
 		int endidx = N - 1;
 		int mididx = (stidx + endidx) / 2;
-		//    for cnt = 1:Numloop
 		for (cnt = 0; cnt < Numloop; ++cnt) {
-			//        if Knotout(k)<=DataIn(mididx,1)
-			//            endidx = mididx;
-			//        else
-			//            stidx = mididx;
-			//        end
-			//        mididx = fix(0.5*(stidx+endidx));
 			if (Knotout[k] <= DataIn[mididx * dn])
 				endidx = mididx;
 			else
 				stidx = mididx;
 			mididx = (stidx + endidx) / 2;
 		}
-		//    InteriorKnotIdx(k)=mididx;
 		InteriorKnotIdx[k] = mididx;
-	//end
 	}
 #ifdef BSPLINEFITTING_DEBUG
 print_matrix_int("InteriorKnotIdx", 1, looptime, InteriorKnotIdx, looptime);
 #endif
-	//Nmat = NewNmatrix(Knot,Degree);
 
 	double Nmat[Order * Order][nKnots - 1];
 	NewNmatrix(Knot, nKnots, Degree, *Nmat);
@@ -1959,13 +1739,11 @@ print_matrix_int("InteriorKnotIdx", 1, looptime, InteriorKnotIdx, looptime);
 print_matrix("Nmat", Order * Order, nKnots - 1, *Nmat, nKnots - 1);
 #endif
 
-	//ANmat = zeros(N,numel(Knot)-Order);
 	double ANmat[N][nKnots - Order];
 	for (i = 0; i < N; ++i)
 		for (j = 0; j < nKnots - Order; ++j)
 			ANmat[i][j] = 0;
 
-	//Dknot = diff(Knot);
 	double Dknot[nKnots - 1];
 	for (i = 0; i < nKnots - 1; ++i)
 		Dknot[i] = Knot[i + 1] - Knot[i];
@@ -1973,7 +1751,6 @@ print_matrix("Nmat", Order * Order, nKnots - 1, *Nmat, nKnots - 1);
 print_matrix("Dknot", 1, nKnots - 1, Dknot, nKnots - 1);
 #endif
 
-	//indexnonzero=find(Dknot);
 	int indexnonzero[nKnots - 1];
 	int nindexnonzero = 0;
 	for (i = 0; i < nKnots - 1; ++i)
@@ -1983,17 +1760,12 @@ print_matrix("Dknot", 1, nKnots - 1, Dknot, nKnots - 1);
 print_matrix_int("indexnonzero", 1, nindexnonzero, indexnonzero, nindexnonzero);
 #endif
 
-	//idx0 = 1;
-	//idxrow0 = 1;
 	int idx0 = 0;
 	int idxrow0 = 0;
 	int idx1;
 	double reshaped[Order][Order];
 
-	//for k=1:(looptime)
 	for (k = 0; k < looptime; ++k) {
-		//    idx1 = InteriorKnotIdx(k);
-		//    idxrow1 = idxrow0 + Degree;
 		idx1 = InteriorKnotIdx[k];
 
 		for (i = 0; i < Order; ++i)
@@ -2003,8 +1775,6 @@ print_matrix_int("indexnonzero", 1, nindexnonzero, indexnonzero, nindexnonzero);
 print_matrix("reshaped", Order, Order, *reshaped, Order);
 #endif
 
-		//    ANmat(idx0:idx1,idxrow0:idxrow1)=Amat(idx0:idx1,:)...
-		//        *reshape(Nmat(:,indexnonzero(k)),[Order,Order]);
 		cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
 			idx1 - idx0 + 1, Order, Order, 1.0,
 			&Amat[idx0][0], Order, *reshaped, Order,
@@ -2013,16 +1783,10 @@ print_matrix("reshaped", Order, Order, *reshaped, Order);
 print_matrix("ANmat", N, nKnots - Order, *ANmat, nKnots - Order);
 #endif
 
-		//    idx0 = idx1 + 1;
-		//    idxrow0 = idxrow0 + MultipleKnot(k);
 		idx0 = idx1 + 1;
 		idxrow0 = idxrow0 + MultipleKnot[k];
 	}
 
-	//idx1 = N;
-	//idxrow1 = idxrow0 + Degree;
-	//ANmat(idx0:idx1,idxrow0:idxrow1)=Amat(idx0:idx1,:)...
-	//        *reshape(Nmat(:,indexnonzero(k+1)),[Order,Order]);
 	idx1 = N - 1;
 	for (i = 0; i < Order; ++i)
 		for (j = 0; j < Order; ++j)
@@ -2035,7 +1799,6 @@ print_matrix("ANmat", N, nKnots - Order, *ANmat, nKnots - Order);
 print_matrix("ANmat", N, nKnots - Order, *ANmat, nKnots - Order);
 #endif
 
-	//CtrlPoints = ANmat\Ymat;
 	double CtrlPoints[N][dn - 1];
 	double ANmat_copy[N][nKnots - Order];
 	for (i = 0; i < N; ++i) {
@@ -2051,7 +1814,6 @@ print_matrix("ANmat", N, nKnots - Order, *ANmat, nKnots - Order);
 print_matrix("CtrlPoints", nKnots - Order, dn - 1, *CtrlPoints, dn - 1);
 #endif
 
-	//Yfit = ANmat*CtrlPoints;
 	double Yfit[N][dn - 1];
 	cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasNoTrans,
 		N, dn - 1, nKnots - Order, 1.0,
@@ -2061,7 +1823,6 @@ print_matrix("CtrlPoints", nKnots - Order, dn - 1, *CtrlPoints, dn - 1);
 print_matrix("Yfit", N, dn - 1, *Yfit, dn - 1);
 #endif
 
-	//R = Ymat - Yfit;
 	double R[N][dn - 1];
 	for (i = 0; i < N; ++i)
 		for (j = 0; j < dn - 1; ++j)
@@ -2070,7 +1831,6 @@ print_matrix("Yfit", N, dn - 1, *Yfit, dn - 1);
 print_matrix("R", N, dn - 1, *R, dn - 1);
 #endif
 
-	//Error = sqrt(sum(R.*R,2));
 	double RowError[N];
 	for (i = 0; i < N; ++i) {
 		RowError[i] = 0;
@@ -2078,7 +1838,6 @@ print_matrix("R", N, dn - 1, *R, dn - 1);
 			RowError[i] += R[i][j] * R[i][j];
 		RowError[i] = sqrt(RowError[i]);
 	}
-	//% MaxError = max(Error);
 	double MaxError = 0;
 	for (i = 0; i < N; ++i)
 		if (RowError[i] > MaxError)
@@ -2125,10 +1884,6 @@ free_bspline(bspline_t *b)
 	free(b);
 }
 
-// function [BSpline,MaxError,FittedData] = BSplineCurveFittingSerialBisection...
-//   (DataIn,Degree,CtrlError,MinAngle,MaxSmooth,N0ScanForDiscontinuosCase,...
-//   GaussNewtonLoopTime,ScanKnot)
-
 void
 BSplineCurveFittingSerialBisection(double *DataIn, int dm, int dn, int Degree, double CtrlError, double MinAngle,
 	int MaxSmooth, int N0ScanForDiscontinuosCase, int GaussNewtonLoopTime, int ScanKnot,
@@ -2144,9 +1899,6 @@ BSplineCurveFittingSerialBisection(double *DataIn, int dm, int dn, int Degree, d
 	SerialBisection(DataIn, dm, dn, Degree, CtrlError, VectorUX1, &n);
 
 	/* find optimal knot */
-	// [~,n]= size(VectorUX1);
-	// OptimalKnotOut = zeros(1,n-1);
-	// MultipleOut = zeros(1,n-1);
 	double OptimalKnotOut[n - 1];
 	int MultipleOut[n - 1];
 	for (i = 0; i < n - 1; ++i) {
@@ -2154,21 +1906,14 @@ BSplineCurveFittingSerialBisection(double *DataIn, int dm, int dn, int Degree, d
 		MultipleOut[n] = 0;
 	}
 
-	// for ii = 1:(n-1)
 	for (ii = 0; ii < n - 1; ++ii) {
-		// idx00 =  VectorUX1(1,ii);
-		// DataKnot =  VectorUX1(1,ii+1)-VectorUX1(1,ii);
-		// idx11 =  VectorUX1(2,ii+1);
 		int idx00 = VectorUX1[ii]->StartIdx;
 		int DataKnot = VectorUX1[ii + 1]->StartIdx - VectorUX1[ii]->StartIdx;
 		int idx11 = VectorUX1[ii + 1]->LeftIdx;
-		// DataInKnot = DataIn(idx00:idx11,:);
 		double DataInKnot[idx11 - idx00 + 1][dn];
 		for (i = 0; i < idx11 - idx00 + 1; ++i)
 			for (j = 0; j < dn; ++j)
 				DataInKnot[i][j] = DataIn[(idx00 + i) * dn + j];
-		// [OptimalKnotOut(ii),MultipleOut(ii)] = TwoPieceOptimalKnotSolver1(DataInKnot,DataKnot,...
-		// Degree,MinAngle,MaxSmooth,N0ScanForDiscontinuosCase,GaussNewtonLoopTime,ScanKnot);
 
 #ifdef BSPLINEFITTING_DEBUG
 printf("idx00 %d idx11 %d DataKnot %d\n", idx00, idx11, DataKnot);
@@ -2181,7 +1926,6 @@ print_matrix("DataInKnot", idx11 - idx00 + 1, dn, *DataInKnot, dn);
 			&OptimalKnot, &Multiple);
 		OptimalKnotOut[ii] = OptimalKnot;
 		MultipleOut[ii] = Multiple;
-	// end
 		free(VectorUX1[ii]);
 	}
 	free(VectorUX1[n - 1]);
@@ -2190,8 +1934,6 @@ print_matrix("OptimalKnotOut", 1, n - 1, OptimalKnotOut, n - 1);
 print_matrix_int("MultipleOut", 1, n - 1, MultipleOut, n - 1);
 #endif
 
-
-	// [BSpline,MaxError,FittedData] = BsplineFitting(OptimalKnotOut,MultipleOut,DataIn,Degree);
 	BsplineFitting(OptimalKnotOut, MultipleOut, n - 1, DataIn, dm, dn, Degree, pBSpline, pMaxError, pFittedData);
 }
 
