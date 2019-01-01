@@ -10,6 +10,13 @@ extern mpfr_rnd_t rnd;
 
 struct _path_elem;
 
+#ifndef min
+#define min(x, y) ((x)<(y)?(x):(y))
+#endif
+#ifndef max
+#define max(x, y) ((x)>(y)?(x):(y))
+#endif
+
 /*
  * motion.c
  */
