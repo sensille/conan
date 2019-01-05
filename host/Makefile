@@ -1,6 +1,6 @@
 all: conan serial motion b-approx
 
-VER=29
+VER=30
 SRC = serial.c crc16.c main.c
 HDR = checksum.h serial.h
 C_SRC = motion.c clothoid.c circle.c planner.c line.c conan.c gcode.c b-approx.c
@@ -27,6 +27,11 @@ gcode:
 	gnuplot gc/data.gp
 	mkdir -p /var/www/html/3dpfs/$(VER)
 	cp -R gc /var/www/html/3dpfs/$(VER)/
+
+bs:
+	gnuplot ba/ba.gp
+	mkdir -p /var/www/html/3dpfs/$(VER)
+	cp -R ba /var/www/html/3dpfs/$(VER)/
 
 clean:
 	rm serial *.png gmp

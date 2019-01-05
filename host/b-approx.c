@@ -640,11 +640,12 @@ printf("SearchRange: %f-%f\n", SearchRange[0], SearchRange[1]);
 #endif
 
 		if (SearchRange[1] > SearchRange[0]) {
-			int ExpandRange = max(ceil(0.5 * (N0ScanForDiscontinuosCase + 1) / (LeftSearch1 + RightSearch1)), 1);
+			int ExpandRange = 0;
+			if (LeftSearch1 + RightSearch1 != 0)
+				ExpandRange = max(ceil(0.5 * (N0ScanForDiscontinuosCase + 1) / (LeftSearch1 + RightSearch1)), 1);
 #ifdef TWOPIECEOPTIMALKNOTSOLVER1_DEBUG
 printf("ExpandRange %d\n", ExpandRange);
 #endif
-
 			int Multiple = ii;
 			int numKnotLocation = N0ScanForDiscontinuosCase + 1;
 			double KnotLocation[numKnotLocation];
@@ -734,6 +735,7 @@ printf("range %f-%f knot %f angle %f error %f\n",
 				}
 				SearchRangeOut[0][ii - 1] = KnotLocation[max(disIdx - ExpandRange, 0)];
 				SearchRangeOut[1][ii - 1] = KnotLocation[min(disIdx + ExpandRange, numKnotLocation - 1)];
+				OptimalKnotSave[ii - 1] = KnotLocation[disIdx];
 				AngleSave[ii - 1] = DisAnglePsave[disIdx];
 				ErrorSave[ii - 1] = MinError;
 			}
@@ -989,6 +991,9 @@ print_matrix("N", datalength, Order + Multiple, *N, Order + Multiple);
 	}
 	int ret = LAPACKE_dgels(LAPACK_ROW_MAJOR, 'N',
 		datalength, Order + Multiple, datasize12, *N_copy, Order + Multiple, *Pctrl, datasize12);
+#ifdef KNOTEVAL_DEBUG
+printf("dgels returned %d\n", ret);
+#endif
 	assert(ret == 0);
 #ifdef KNOTEVAL_DEBUG
 print_matrix("Pctrl", Order + Multiple, datasize12, *Pctrl, datasize12);
@@ -1937,6 +1942,147 @@ print_matrix_int("MultipleOut", 1, n - 1, MultipleOut, n - 1);
 	BsplineFitting(OptimalKnotOut, MultipleOut, n - 1, DataIn, dm, dn, Degree, pBSpline, pMaxError, pFittedData);
 }
 
+#if 0
+double
+calc_bspline(bspline_t *b, double t)
+{
+	int k = b->degree + 1;
+	int nn = b->nknots - 1;
+	int iv;
+	int i, j;
+	double N[nn][k];
+
+	/* find interval */
+	for (iv = 1; iv < b->nknots; ++iv)
+		if (t < b->knot[iv])
+			break;
+	--iv;
+
+	printf("interval: %d\n", iv);
+
+	for (i = 0; i < nn; ++i)
+		N[i][0] = 0;
+	N[iv][0] = 1;
+	for (i = 1; i < k; ++i) {
+		for (j = 0; j < nn - ; ++j) {
+			double n00 = 0;
+			double n01 = 0;
+			if (j > dim - i - 1)
+				n00 = N[j][i - 1];
+			if (j + 1 < dim)
+				n01 = N[j + 1][i - 1];
+			double t0 = b->knot[iv + j - k + 1];
+			double t1 = b->knot[iv + j - k];
+			double t2 = b->knot[iv + j - k - 1];
+			double n10, n11;
+			if (t0 == t1)
+				n10 = 0;
+			else
+				n10 = (t - t0) / (t1 - t0) * n00;
+			if (t1 == t2)
+				n11 = 0;
+			else
+				n11 = (t2 - t) / (t2 - t1) * n01;
+			printf("i %d j %d n0 %f n1 %f t0 %f t1 %f t %f n10 %f n11 %f n %f\n", i, j, n00, n01, t0, t1, t, n10, n11, n10 + n11);
+			N[j][i] = n10 + n11;
+		}
+	}
+
+print_matrix("N", dim, k, *N, k);
+	return N[0][k - 1];
+}
+
+#else
+#undef CALC_BSPLINE_DEBUG
+double
+_calc_bspline_N(double *knot, int i, int p, double t)
+{
+	if (p == 0) {
+		if (t >= knot[i] && t < knot[i + 1])
+			return 1;
+		return 0;
+	}
+	double n0 = 0;
+	double n1 = 0;
+	if (knot[i + p] - knot[i] != 0)
+		n0 = (t - knot[i]) / (knot[i + p] - knot[i]) *
+			_calc_bspline_N(knot, i, p - 1, t);
+	if (knot[i + p + 1] - knot[i + 1] != 0)
+		n1 = (knot[i + p + 1] - t) / (knot[i + p + 1] - knot[i + 1]) *
+			_calc_bspline_N(knot, i + 1, p - 1, t);
+
+#ifdef CALC_BSPLINE_DEBUG
+printf("N(%d, %d) = %f\n", i, p, n0 + n1);
+#endif
+	return n0 + n1;
+}
+
+double
+calc_bspline_N(bspline_t *b, int i, double t)
+{
+	return _calc_bspline_N(b->knot, i, b->degree, t);
+}
+
+void
+calc_bspline(bspline_t *b, double t, double *p)
+{
+	int i;
+	int j;
+	int dim = b->dimension;
+
+	for (i = 0; i < dim; ++i)
+		p[i] = 0;
+
+	for (i = 0; i < b->npoints; ++i) {
+		double N = calc_bspline_N(b, i, t);
+		for (j = 0; j < dim; ++j)
+			p[j] += N * b->ctrlp[i * dim + j];
+	}
+
+#ifdef CALC_BSPLINE_DEBUG
+	printf("line: %f", t);
+	for (i = 0; i < dim; ++i)
+		printf(" %f", p[i]);
+	printf("\n");
+#endif
+}
+
+bspline_t *
+derive_bspline(bspline_t *b)
+{
+	int i;
+	int j;
+	int dim = b->dimension;
+	int p = b->degree;
+	bspline_t *d = calloc(sizeof(*d), 1);
+
+	assert(d);
+	d->degree = p - 1;
+	d->dimension = dim;
+	d->nknots = b->nknots - 1;
+	d->knot = calloc(sizeof(double), d->nknots);
+	d->coef = NULL;	/* XXX TODO */
+	d->npoints = b->npoints - 1;
+	d->ctrlp = calloc(sizeof(double) * dim, d->npoints);
+	assert(d->knot);
+	assert(d->ctrlp);
+
+	for (i = 0; i < d->nknots; ++i)
+		d->knot[i] = b->knot[i + 1];
+	for (i = 0; i < d->npoints; ++i) {
+		for (j = 0; j < d->dimension; ++j) {
+			double c = 0;
+			double iv = b->knot[i + p + 1] - b->knot[i + 1];
+			if (iv != 0)
+				c =  p / iv;
+			d->ctrlp[i * dim + j] = c * (b->ctrlp[(i + 1) * dim + j] - b->ctrlp[i * dim + j]);
+		}
+	}
+
+	return d;
+}
+
+#endif
 
 #ifdef BATEST
 mpfr_rnd_t rnd = MPFR_RNDN;
@@ -2138,9 +2284,104 @@ gnknotsolver1_test()
 static void
 print_bspline(bspline_t *b)
 {
+	int i;
+	int m;
+
 	printf("bspline of degree %d\n", b->degree);
 	print_matrix("knots", 1, b->nknots, b->knot, 1);
 	print_matrix("control points", b->npoints, b->dimension, b->ctrlp, b->dimension);
+	printf("multiplicities");
+	m = 1;
+	for (i = 1; i < b->nknots; ++i) {
+		if (b->knot[i] == b->knot[i - 1]) {
+			++m;
+		} else {
+			printf(" %d", m);
+			m = 1;
+		}
+	}
+	printf(" %d\n", m);
+}
+
+static void
+print_knot(FILE *fp, bspline_t *b, int i, int m)
+{
+	int k;
+	double p[b->dimension];
+	double t = min(b->knot[i], 0.99999);
+
+	calc_bspline(b, t, p);
+	for (k = 0; k < b->dimension; ++k)
+		fprintf(fp, "%f ", p[k]);
+	fprintf(fp, " %d\n", m);
+}
+
+void
+print_knots(bspline_t *b)
+{
+	int i;
+	int m;
+
+	FILE *fp = fopen("knots.data", "w");
+	if (fp == NULL) {
+		printf("failed to open knots file\n");
+		exit(1);
+	}
+	m = 1;
+	for (i = 1; i < b->nknots; ++i) {
+		if (b->knot[i] == b->knot[i - 1]) {
+			++m;
+		} else {
+			print_knot(fp, b, i - 1, m);
+			m = 1;
+		}
+	}
+	print_knot(fp, b, i - 1, m);
+	fclose(fp);
+}
+
+#if 0
+{
+    "discretization": 100,
+    "degree": 3,
+    "controlPoints": [
+        -4, -4, 0, 1,
+        -2, 4, 0, 1,
+        2, -4, 0, 1,
+        4, 4, 0, 1
+    ],
+    "knots": [ 0, 0, 0, 0, 1, 1, 1, 1 ]
+}
+#endif
+void
+bspline_json(bspline_t *b, int segments)
+{
+	int i;
+	int j;
+
+	printf("json: {\n");
+	printf("json: \t\"discretization\": %d,\n", segments);
+	printf("json: \t\"degree\": %d,\n", b->degree);
+	printf("json: \t\"controlPoints\": [\n");
+	for (i = 0; i < b->npoints; ++i) {
+		printf("json: \t");
+		for (j = 0; j < b->dimension; ++j)
+			printf("%f, ", b->ctrlp[i * b->dimension + j]);
+		for (; j < 3; ++j)
+			printf("0, ");
+		if (i == b->npoints -1)
+			printf("1\n");
+		else
+			printf("1,\n");
+	}
+	printf("json: \t],\n");
+	printf("json: \t\"knots\": [ ");
+	for (i = 0; i < b->nknots; ++i) {
+		if (i != 0)
+			printf(", ");
+		printf("%f", b->knot[i]);
+	}
+	printf("]\njson: }\n");
 }
 
 void
@@ -2179,31 +2420,257 @@ test_serial_bisection()
 	}
 }
 
+void
+test_nmatrix()
+{
+	int Degree = 1;
+	int Order = Degree + 1;
+	double Knots[] = { 0, 0, 0, 1, 1, 1 };
+	int nKnots = sizeof(Knots) / sizeof(double);
+	double Nmat[Order * Order][nKnots - 1];
+
+	NewNmatrix(Knots, nKnots, Degree, *Nmat);
+	print_matrix("Nmat", Order * Order, nKnots - 1, *Nmat, nKnots - 1);
+exit(1);
+}
+
+void
+print_ctrlp(bspline_t *b)
+{
+	int i;
+	int j;
+
+	FILE *fp = fopen("ctrlp.data", "w");
+	if (fp == NULL) {
+		printf("failed to open ctrlp output file\n");
+		exit(1);
+	}
+	for (i = 0; i < b->npoints; ++i) {
+		for (j = 0; j < b->dimension; ++j)
+			fprintf(fp, "%f ", b->ctrlp[i * b->dimension + j]);
+		fprintf(fp, "\n");
+	}
+	fclose(fp);
+}
+
+void
+print_orig(double *in, int inlen)
+{
+	int i;
+	int j;
+
+	FILE *fp = fopen("orig.data", "w");
+	if (fp == NULL) {
+		printf("failed to open orig output file\n");
+		exit(1);
+	}
+	for (i = 0; i < inlen; ++i) {
+		for (j = 0; j < 3; ++j)
+			fprintf(fp, "%f ", in[i * 3 + j]);
+		fprintf(fp, "\n");
+	}
+	fclose(fp);
+}
+
+static void
+preprocess_out(double **out, int *outlen, int d, double *p)
+{
+	int i;
+
+	*out = realloc(*out, (*outlen + 1) * sizeof(double) * d);
+	for (i = 0; i < d; ++i)
+		(*out)[*outlen * d + i] = p[i];
+	++*outlen;
+}
+
+/* first column: t, other colums: coordinates */
+void
+preprocess(double *in, int inlen, int d, double maxseg, double **out, int *outlen)
+{
+	int i;
+	int j;
+	int k;
+
+	*outlen = 0;
+	*out = NULL;
+
+	FILE *fp = fopen("extra.data", "w");
+	if (fp == NULL) {
+		printf("failed to open extra.data\n");
+		exit(1);
+	}
+	preprocess_out(out, outlen, d, in);
+	for (i = 1; i < inlen; ++i) {
+		double len = 0;
+		double diff[d];
+		for (k = 0; k < d; ++k) {
+			diff[k] = in[i * d + k] - in[(i - 1) * d + k];
+			if (k > 0)
+				len += diff[k] * diff[k];
+		}
+		len = sqrt(len);
+printf("[%d] chordlen %f\n", i, len);
+
+		if (len > maxseg) {
+			/* generate intermediate points on line */
+			int n = ceil(len / maxseg) - 1;
+			for (j = 1; j < n; ++j) {
+				double p[d];
+				for (k = 0; k < d; ++k)
+					p[k] = in[(i - 1) * d + k] + (diff[k] / n) * j;
+				preprocess_out(out, outlen, d, p);
+				for (k = 0; k < d; ++k)
+					fprintf(fp, "%f ", p[k]);
+				fprintf(fp, "\n");
+			}
+		}
+		preprocess_out(out, outlen, d, in + i * d);
+	}
+	fclose(fp);
+}
+
+void
+read_csv(const char *name, double **out, int *outlen)
+{
+	int ret;
+	int i;
+	FILE *fp = fopen(name, "r");
+	if (fp == NULL) {
+		printf("failed to open %s\n", name);
+		exit(1);
+	}
+	*out = NULL;
+	*outlen = 0;
+	while (!feof(fp)) {
+		double t, x, y, l;
+		double p[3];
+		ret = fscanf(fp, "%lf %lf %lf %lf\n", &t, &x, &y, &l);
+		if (ret != 4) {
+			printf("failed to parse %s\n", name);
+			exit(1);
+		}
+		p[0] = t;
+		p[1] = x;
+		p[2] = y;
+		preprocess_out(out, outlen, 3, p);
+	}
+	fclose(fp);
+	/* scale time */
+	double tm = (*out)[(*outlen - 1) * 3];
+	double scale = 1 / tm;
+	for (i = 1; i < *outlen; ++i) {
+		(*out)[i * 3] *=  scale;
+	}
+}
+
+/*
+ * good: degree 3, ctrl_error 0.01, max_smooth 0, insert at 0.02 ba8.png
+ * ctrl_error 0.005: too many knots
+ * also at degree 4: max_smooth > 0: bad
+ */
 int
 main(int argc, char **argv)
 {
 	int dim = 2;
-	int degree = 5;
-	double ctrl_error = 0.050;
+	int degree = 3;
+	double ctrl_error = 0.01;
 	double min_angle = 0.002;
-#if 0
-	int max_smooth = -1;
-#else
-	int max_smooth = 2;
-#endif
+	int max_smooth = 0;
 	int scan_knot = 0;
 	int n0_scan_for_discontinous_case = 10;
 	int gauss_newton_loop_time = 10;
 
 	double max_error;
 	bspline_t *bspline;
+	double *in = *demo;
+	int inlen = 94;
 
-	BSplineCurveFittingSerialBisection(*demo, 94, dim + 1, degree, ctrl_error, min_angle,
+	if (argc == 2)
+		read_csv(argv[1], &in, &inlen);
+
+#if 0
+	test_nmatrix();
+#endif
+
+	print_orig(in, inlen);
+
+	double *out;
+	int outlen;
+	preprocess(in, inlen, 3, 0.02, &out, &outlen);
+	print_matrix("preprocessed", outlen, 3, out, 3);
+
+	BSplineCurveFittingSerialBisection(out, outlen, dim + 1, degree, ctrl_error, min_angle,
 		max_smooth, n0_scan_for_discontinous_case, gauss_newton_loop_time, scan_knot,
 		&bspline, &max_error, NULL);
 
+	print_ctrlp(bspline);
 	print_bspline(bspline);
+#if 0
+	bspline_json(bspline, 1000);
+#endif
+	double t;
+	print_knots(bspline);
+	FILE *fp = fopen("ba.data", "w");
+	if (fp == NULL) {
+		printf("failed to open ba.data\n");
+		exit(1);
+	}
+	for (t = 0; t < 1; t += 0.0001) {
+		double p[bspline->dimension];
+		int k;
+
+		calc_bspline(bspline, t, p);
+		fprintf(fp, "%f", t);
+		for (k = 0; k < dim; ++k)
+			fprintf(fp, " %f", p[k]);
+		fprintf(fp, "\n");
+	}
+	fclose(fp);
+
+	bspline_t *d1 = derive_bspline(bspline);
+	bspline_t *d2 = derive_bspline(d1);
+	bspline_t *d3 = derive_bspline(d2);
+	print_bspline(d1);
+	print_bspline(d2);
+	print_bspline(d3);
+
+	fp = fopen("vajcs.data", "w");
+	if (fp == NULL) {
+		printf("failed to open ba.data\n");
+		exit(1);
+	}
+	for (t = 0; t < 0.99; t += 0.0001) {
+		double pv[dim];
+		double pa[dim];
+		double pj[dim];
+		int k;
+		double v = 0;
+		double a = 0;
+		double j = 0;
+
+		calc_bspline(d1, t, pv);
+		for (k = 0; k < dim; ++k)
+			v += pv[k] * pv[k];
+		v = sqrt(v);
+		calc_bspline(d2, t, pa);
+		for (k = 0; k < dim; ++k)
+			a += pa[k] * pa[k];
+		a = sqrt(a);
+		calc_bspline(d3, t, pj);
+		for (k = 0; k < dim; ++k)
+			j += pj[k] * pj[k];
+		j = sqrt(j);
+		double c = abs(pv[0] * pa[0] - pv[1] * pa[1]) /
+			pow(pv[0] * pv[0] + pv[1] * pv[1], 1.5);
+		double s = abs(pa[0] * pj[0] - pa[1] * pj[1]) /
+			pow(pa[0] * pa[0] + pa[1] * pa[1], 1.5);
+		fprintf(fp, "%f %f %f %f %f %f\n", t, v, a, j, c, s);
+	}
+
 	free(bspline);
+	free(d1);
+	free(d2);
+	free(d3);
 
 	return 0;
 }
