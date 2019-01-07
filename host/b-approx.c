@@ -2047,6 +2047,8 @@ calc_bspline(bspline_t *b, double t, double *p)
 #endif
 }
 
+#endif
+
 bspline_t *
 derive_bspline(bspline_t *b)
 {
@@ -2059,7 +2061,7 @@ derive_bspline(bspline_t *b)
 	assert(d);
 	d->degree = p - 1;
 	d->dimension = dim;
-	d->nknots = b->nknots - 1;
+	d->nknots = b->nknots - 2;
 	d->knot = calloc(sizeof(double), d->nknots);
 	d->coef = NULL;	/* XXX TODO */
 	d->npoints = b->npoints - 1;
@@ -2082,7 +2084,97 @@ derive_bspline(bspline_t *b)
 	return d;
 }
 
+/*
+ * Adaptive integration according to
+ * 	Computing the Arc Length of Parametric Curves
+ *	Guenter, Parent
+ */
+#define GL_N 4
+double
+bs_integral(bspline_t *bs, double a, double b)
+{
+	static int is_init = 0;
+	static double x[GL_N] = { 0 };
+	static double w[GL_N] = { 0 };
+	double y[GL_N] = { 0 };
+	double p[bs->dimension];
+	double r = 0;
+	int i;
+	int j;
+
+	if (!is_init) {
+		x[0] = sqrt(3.0 / 7 - 2.0 / 7 * sqrt(6.0 / 5));
+		x[1] = -x[0];
+		x[2] = sqrt(3.0 / 7 + 2.0 / 7 * sqrt(6.0 / 5));
+		x[3] = -x[2];
+		w[0] = (18 + sqrt(30)) / 36;
+		w[1] = w[0];
+		w[2] = (18 - sqrt(30)) / 36;
+		w[3] = w[2];
+		is_init = 1;
+	}
+
+	for (i = 0; i < GL_N; ++i) {
+		calc_bspline(bs, (b - a) / 2 * x[i] + (a + b) / 2, p);
+		for (j = 0; j < bs->dimension; ++j)
+			y[i] += p[j] * p[j];
+		y[i] = sqrt(y[i]);
+		r += w[i] * y[i];
+	}
+
+	return (b - a) / 2 * r;
+}
+
+double
+bs_subdivide(bspline_t *bs, double left, double right, double full_int,
+	double total_length, double epsilon)
+{
+	double mid = (left + right) / 2;
+	double left_value = bs_integral(bs, left, mid);
+	double right_value = bs_integral(bs, mid, right);
+
+#if 0
+printf("subdivide %f-%f left %f right %f full_int %f total_length %f epsilon %e diff %e\n", left, right, left_value, right_value, full_int, total_length, epsilon, fabs(full_int - (left_value + right_value)));
 #endif
+	if (fabs(full_int - (left_value + right_value)) > epsilon) {
+		double left_sub = bs_subdivide(bs, left, mid, left_value,
+			0, epsilon / 2.0);
+		total_length += left_sub;
+		return bs_subdivide(bs, mid, right, right_value,
+			total_length, epsilon / 2.0) + left_sub;
+	} else {
+		return left_value + right_value;
+	}
+}
+
+double
+bs_adaptive_integration(bspline_t *bs, double left, double right,
+	double epsilon)
+{
+	double full_int = bs_integral(bs, left, right);
+
+	return bs_subdivide(bs, left, right, full_int, 0, epsilon);
+}
+
+/* pass derivate of bspline */
+void
+generate_arclen_points(bspline_t *d1)
+{
+	int i;
+	double sum = 0;
+
+	for (i = 0; i < d1->nknots - 1; ++i) {
+		if (d1->knot[i] == d1->knot[i + 1])
+			continue;
+		double al = bs_adaptive_integration(d1,
+			d1->knot[i], d1->knot[i+1] - 1e-10, 1e-10);
+		printf("calc arclen from %f-%f: %f\n", d1->knot[i],
+			d1->knot[i + 1], al);
+		sum += al;
+	}
+	printf("total: %f\n", sum);
+	exit(1);
+}
 
 #ifdef BATEST
 mpfr_rnd_t rnd = MPFR_RNDN;
@@ -2634,12 +2726,18 @@ main(int argc, char **argv)
 	print_bspline(d2);
 	print_bspline(d3);
 
+	/*
+	 * calculate time-correction bspline
+	 */
+	generate_arclen_points(d1);
+
+
 	fp = fopen("vajcs.data", "w");
 	if (fp == NULL) {
 		printf("failed to open ba.data\n");
 		exit(1);
 	}
-	for (t = 0; t < 0.99; t += 0.0001) {
+	for (t = 0; t < 1; t += 0.0001) {
 		double pv[dim];
 		double pa[dim];
 		double pj[dim];
@@ -2660,9 +2758,9 @@ main(int argc, char **argv)
 		for (k = 0; k < dim; ++k)
 			j += pj[k] * pj[k];
 		j = sqrt(j);
-		double c = abs(pv[0] * pa[0] - pv[1] * pa[1]) /
+		double c = abs(pv[0] * pa[1] - pv[1] * pa[0]) /
 			pow(pv[0] * pv[0] + pv[1] * pv[1], 1.5);
-		double s = abs(pa[0] * pj[0] - pa[1] * pj[1]) /
+		double s = abs(pa[0] * pj[1] - pa[1] * pj[0]) /
 			pow(pa[0] * pa[0] + pa[1] * pa[1], 1.5);
 		fprintf(fp, "%f %f %f %f %f %f\n", t, v, a, j, c, s);
 	}
