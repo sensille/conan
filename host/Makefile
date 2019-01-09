@@ -1,6 +1,6 @@
 all: conan serial motion b-approx
 
-VER=30
+VER=31
 SRC = serial.c crc16.c main.c
 HDR = checksum.h serial.h
 C_SRC = motion.c clothoid.c circle.c planner.c line.c conan.c gcode.c b-approx.c

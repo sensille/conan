@@ -17,6 +17,7 @@ typedef struct _bspline {
 	double	*ctrlp;
 	int	npoints;	/* number of control points */
 	int	dimension;	/* dimension of points */
+	int	active_knots;	/* knots minus multiples */
 
 	/* Coefficient matrix, (degree + 1)^2 x (nknots - 1) */
 	double	*coef;
@@ -28,6 +29,9 @@ typedef struct _p {
 	double	t;
 } p_t;
 
+#ifdef BATEST
+static void print_bspline(bspline_t *b);
+#endif
 void
 match_path(motion_t *m, point_t *points, int npoints)
 {
@@ -52,7 +56,7 @@ if (npoints <= 2) return;
 		double dx = p[i + 1].x - p[i].x;
 		double dy = p[i + 1].y - p[i].y;
 		double l = sqrt(dx * dx + dy * dy);
-printf("l %.5f\n", l);
+printf("l %.6f\n", l);
 		p[i].t = cl;
 		cl += l;
 	}
@@ -133,7 +137,23 @@ print_matrix(const char *name, int rows, int cols, double *m, int lda)
 	printf("%s: (%dx%d)\n", name, rows, cols);
 	for (i = 0; i < rows; ++i) {
 		for (j = 0; j < cols; ++j) {
-			printf("%.05f ", m[i * lda + j]);
+			printf("%.6f ", m[i * lda + j]);
+		}
+		printf("\n");
+	}
+	printf("----\n");
+}
+
+void
+print_matrix_e(const char *name, int rows, int cols, double *m, int lda)
+{
+	int i;
+	int j;
+
+	printf("%s: (%dx%d)\n", name, rows, cols);
+	for (i = 0; i < rows; ++i) {
+		for (j = 0; j < cols; ++j) {
+			printf("%.8e ", m[i * lda + j]);
 		}
 		printf("\n");
 	}
@@ -359,7 +379,7 @@ print_matrix("CtrlP", Order, S - 1, *CtrlP, S - 1);
 			Errorcal = sqrt(Errorcal);
 
 #ifdef SERIALBISECTION_DEBUG
-printf("Errorcal: %.5f\n", Errorcal);
+printf("Errorcal: %.6f\n", Errorcal);
 #endif
 			/* Fitting error evaluation */
 			int success = 0;
@@ -400,6 +420,18 @@ printf("saving Errorcal %f\n", Errorcal);
 		StartIdx = LeftIdx + 1;
 		EndIdx = datasize - 1;
 	}
+
+#undef SERIAL_BISECTION_RESULT_DEBUG
+#ifdef SERIAL_BISECTION_RESULT_DEBUG
+	printf("SerialBisection: %d rows\n", *VectorUXlen);
+	for (i = 0; i < *VectorUXlen; ++i) {
+		VectorUX_t *v = VectorUX[i];
+		printf("StartIdx %d LeftIdx %d ErrorMax %f\n", v->StartIdx,
+			v->LeftIdx, v->ErrorMax);
+		print_matrix("Nmatrix", Order, Order, v->Nmatrix, Order);
+		print_matrix("CtrlPointY", Order, S - 1, v->CtrlPointY, S - 1);
+	}
+#endif
 }
 
 /*
@@ -667,8 +699,8 @@ print_matrix("KnotLocation", 1, numKnotLocation, KnotLocation, numKnotLocation);
 				DisAnglePsave[cnt] = DisAngle;
 			}
 #ifdef TWOPIECEOPTIMALKNOTSOLVER1_DEBUG
-print_matrix("DisErrorSave", 1, numKnotLocation, DisErrorSave, numKnotLocation);
-print_matrix("DisAnglePsave", 1, numKnotLocation, DisAnglePsave, numKnotLocation);
+print_matrix_e("DisErrorSave", 1, numKnotLocation, DisErrorSave, numKnotLocation);
+print_matrix_e("DisAnglePsave", 1, numKnotLocation, DisAnglePsave, numKnotLocation);
 #endif
 
 			/* compute fourfold knot position */
@@ -688,6 +720,9 @@ print_matrix("DisAnglePsave", 1, numKnotLocation, DisAnglePsave, numKnotLocation
 				for (i = 1; i < numKnotLocation; ++i)
 					if (DisErrorSave[i] < CtrlError1)
 						CtrlError1 = DisErrorSave[i];
+#ifdef TWOPIECEOPTIMALKNOTSOLVER1_DEBUG
+printf("CtrlError1 %e\n", CtrlError1);
+#endif
 				int disIdx[numKnotLocation];
 				int numDisIdx = 0;
 				for (i = 0; i < numKnotLocation; ++i)
@@ -745,10 +780,10 @@ printf("range %f-%f knot %f angle %f error %f\n",
 		}
 	}
 #ifdef TWOPIECEOPTIMALKNOTSOLVER1_DEBUG
-print_matrix("SearchRangeOut", 2, Order, *SearchRangeOut, Order);
-print_matrix("OptimalKnotSave", 1, Order, OptimalKnotSave, Order);
-print_matrix("AngleSave", 1, Order, AngleSave, Order);
-print_matrix("ErrorSave", 1, Order, ErrorSave, Order);
+print_matrix("SearchRangeOut (after loop)", 2, Order, *SearchRangeOut, Order);
+print_matrix("OptimalKnotSave (after loop)", 1, Order, OptimalKnotSave, Order);
+print_matrix("AngleSave (after loop)", 1, Order, AngleSave, Order);
+print_matrix("ErrorSave (after loop)", 1, Order, ErrorSave, Order);
 #endif
 	for (cnt = 0; cnt < min(MultipleMax, Degree); ++cnt) {
 		double StartPoint = OptimalKnotSave[cnt];
@@ -788,9 +823,9 @@ printf("StartPoint %f SearchRange %f-%f Multiple %d\n", StartPoint, SearchRange[
 		AngleSave[cnt] = Angle;
 	}
 #ifdef TWOPIECEOPTIMALKNOTSOLVER1_DEBUG
-print_matrix("OptimalKnotSave", 1, Order, OptimalKnotSave, Order);
-print_matrix("ErrorSave", 1, Order, ErrorSave, Order);
-print_matrix("AngleSave", 1, Order, AngleSave, Order);
+print_matrix("OptimalKnotSave (after loop2)", 1, Order, OptimalKnotSave, Order);
+print_matrix("ErrorSave (after loop2)", 1, Order, ErrorSave, Order);
+print_matrix("AngleSave (after loop2)", 1, Order, AngleSave, Order);
 #endif
 
 	/* decide multiple knot */
@@ -798,21 +833,25 @@ print_matrix("AngleSave", 1, Order, AngleSave, Order);
 	double AngleOut[SmoothOutput];
 	for (i = 0; i < SmoothOutput; ++i)
 		AngleOut[i] = AngleSave[i];
-	double idx1[SmoothOutput];
+	int idx1[SmoothOutput];
 	int numIdx1 = 0;
 	for (i = 0; i < SmoothOutput; ++i) {
 		if (AngleOut[i] > MinAngle)
 			idx1[numIdx1++] = i;
 	}
 
+#ifdef TWOPIECEOPTIMALKNOTSOLVER1_DEBUG
+print_matrix_int("idx1", 1, numIdx1, idx1, numIdx1);
+print_matrix("AngleOut", 1, SmoothOutput, AngleOut, SmoothOutput);
+#endif
 	double OptimalKnotOut = 0;
 	int MultipleOut = 0;
 	if (numIdx1 > 0) {
 		double ErrorOut = ErrorSave[0];
 		int minidx = 0;
 		for (i = 1; i < numIdx1; ++i) {
-			if (ErrorSave[i] < ErrorOut) {
-				ErrorOut = ErrorSave[i];
+			if (ErrorSave[idx1[i]] < ErrorOut) {
+				ErrorOut = ErrorSave[idx1[i]];
 				minidx = i;
 			}
 		}
@@ -824,7 +863,7 @@ print_matrix("AngleSave", 1, Order, AngleSave, Order);
 		/* eliminate the knot */
 		double MaxAngle = AngleOut[0];
 		int idx = 0;
-		for (i = 1; i < numIdx1; ++i) {
+		for (i = 1; i < SmoothOutput; ++i) {
 			if (AngleOut[i] > MaxAngle) {
 				MaxAngle = AngleOut[i];
 				idx = i;
@@ -1010,7 +1049,7 @@ print_matrix("G", datalength, datasize12, *G, datasize12);
 	double Gmat[datalength];
 	if (datasize12 == 1) {
 		for (i = 0; i < datalength; ++i)
-			Gmat[i] = abs(G[i][0]);
+			Gmat[i] = fabs(G[i][0]);
 	} else {
 		for (i = 0; i < datalength; ++i)
 			for (j = 0; j < datasize12; ++j)
@@ -1023,7 +1062,7 @@ print_matrix("G", datalength, datasize12, *G, datasize12);
 		}
 	}
 #ifdef KNOTEVAL_DEBUG
-print_matrix("Gmat", 1, datalength, Gmat, datalength);
+print_matrix_e("Gmat", 1, datalength, Gmat, datalength);
 #endif
 
 	double Error = 0;
@@ -1033,7 +1072,7 @@ print_matrix("Gmat", 1, datalength, Gmat, datalength);
 			Error = a;
 	}
 #ifdef KNOTEVAL_DEBUG
-printf("Error: %f\n", Error);
+printf("Error: %e\n", Error);
 #endif
 
 	/* calculating angle */
@@ -1051,7 +1090,7 @@ print_matrix("Sright1", 1, datasize12, Sright1, datasize12);
 
 	double JoinAngle;
 	if (datasize12 == 1) {
-		JoinAngle = abs(atan(Sright1[0]/OptimalKnot) - atan(Sleft1[0]/OptimalKnot));
+		JoinAngle = fabs(atan(Sright1[0]/OptimalKnot) - atan(Sleft1[0]/OptimalKnot));
 	} else {
 		double dot = 0;
 		double norml = 0;
@@ -1090,7 +1129,11 @@ GNKnotSolver1(
 	int i;
 	int j;
 	int cnt;
+#if 1
+	double Stepsize = sqrt(2.22044604925031e-16);	/* resolution of double */
+#else
 	double Stepsize = sqrt(2.2204e-16);	/* resolution of double */
+#endif
 	int Order = Degree + 1;
 
 	double KnotLeft = SearchRange[0];
@@ -1346,8 +1389,8 @@ print_matrix("G1", datalength, datasize12, *G1, datasize12);
 		double Gmat1[datalength];
 		if (datasize12 == 1) {
 			for (i = 0; i < datalength; ++i) {
-				Gmat[i] = abs(G[i][0]);
-				Gmat1[i] = abs(G1[i][0]);
+				Gmat[i] = fabs(G[i][0]);
+				Gmat1[i] = fabs(G1[i][0]);
 			}
 		} else {
 			for (i = 0; i < datalength; ++i) {
@@ -1413,7 +1456,7 @@ print_matrix("Sright1", 1, datasize12, Sright1, datasize12);
 #endif
 		double JoinAngle;
 		if (datasize12 == 1) {
-			JoinAngle = abs(atan(Sright1[0]/OptimalKnot) - atan(Sleft1[0]/OptimalKnot));
+			JoinAngle = fabs(atan(Sright1[0]/OptimalKnot) - atan(Sleft1[0]/OptimalKnot));
 		} else {
 			double dot = 0;
 			double norml = 0;
@@ -1641,6 +1684,7 @@ printf("id10: %d\n", id10);
 }
 
 #undef BSPLINEFITTING_DEBUG
+#define BSPLINEFITTING_INOUT_DEBUG
 static void
 BsplineFitting(double *OptimalKnotOut,int *MultipleOut, int nKnotsOut, double *DataIn, int dm, int dn, int Degree,
 	bspline_t **pBSpline, double *pError, double *pFittedData)
@@ -1654,6 +1698,11 @@ BsplineFitting(double *OptimalKnotOut,int *MultipleOut, int nKnotsOut, double *D
 	int cnt;
 	int ret;
 
+#ifdef BSPLINEFITTING_INOUT_DEBUG
+print_matrix("bsplinefitting in, OptimalKnotOut", 1, nKnotsOut, OptimalKnotOut, 1);
+print_matrix_int("bsplinefitting in, MultipleOut", 1, nKnotsOut, MultipleOut, 1);
+print_matrix("bsplinefitting in, DataIn", dm, dn, DataIn, dn);
+#endif
 	int Order = Degree + 1;
 	double MultipleKnot[nKnotsOut];
 	double Knotout[nKnotsOut];
@@ -1872,9 +1921,17 @@ printf("MaxError %f\n", MaxError);
 	for (i = 0; i < Order * Order; ++i)
 		for (j = 0; j < nKnots - 1; ++j)
 			BSpline->coef[i * (Order * Order) + (nKnots - 1)] = Nmat[i][j];
+	BSpline->active_knots = 1;
+	for (i = 0; i < nKnots - 1; ++i)
+		if (Knot[i + 1] != Knot[i])
+			++BSpline->active_knots;
 	*pBSpline = BSpline;
 
-
+#ifdef BSPLINEFITTING_INOUT_DEBUG
+#ifdef BATEST
+print_bspline(BSpline);
+#endif
+#endif
 	/* XXX TODO return fitted data if needed */
 	//FittedData(:,1)=DataIn(:,1);
 	//FittedData(:,2:size(Yfit,2)+1)=Yfit;
@@ -1889,6 +1946,7 @@ free_bspline(bspline_t *b)
 	free(b);
 }
 
+#undef BSPLINECURVEFITTING_DEBUG
 void
 BSplineCurveFittingSerialBisection(double *DataIn, int dm, int dn, int Degree, double CtrlError, double MinAngle,
 	int MaxSmooth, int N0ScanForDiscontinuosCase, int GaussNewtonLoopTime, int ScanKnot,
@@ -1920,7 +1978,7 @@ BSplineCurveFittingSerialBisection(double *DataIn, int dm, int dn, int Degree, d
 			for (j = 0; j < dn; ++j)
 				DataInKnot[i][j] = DataIn[(idx00 + i) * dn + j];
 
-#ifdef BSPLINEFITTING_DEBUG
+#ifdef BSPLINECURVEFITTING_DEBUG
 printf("idx00 %d idx11 %d DataKnot %d\n", idx00, idx11, DataKnot);
 print_matrix("DataInKnot", idx11 - idx00 + 1, dn, *DataInKnot, dn);
 #endif
@@ -1934,7 +1992,7 @@ print_matrix("DataInKnot", idx11 - idx00 + 1, dn, *DataInKnot, dn);
 		free(VectorUX1[ii]);
 	}
 	free(VectorUX1[n - 1]);
-#ifdef BSPLINEFITTING_DEBUG
+#ifdef BSPLINECURVEFITTING_DEBUG
 print_matrix("OptimalKnotOut", 1, n - 1, OptimalKnotOut, n - 1);
 print_matrix_int("MultipleOut", 1, n - 1, MultipleOut, n - 1);
 #endif
@@ -2062,6 +2120,7 @@ derive_bspline(bspline_t *b)
 	d->degree = p - 1;
 	d->dimension = dim;
 	d->nknots = b->nknots - 2;
+	d->active_knots = b->active_knots;
 	d->knot = calloc(sizeof(double), d->nknots);
 	d->coef = NULL;	/* XXX TODO */
 	d->npoints = b->npoints - 1;
@@ -2088,6 +2147,15 @@ derive_bspline(bspline_t *b)
  * Adaptive integration according to
  * 	Computing the Arc Length of Parametric Curves
  *	Guenter, Parent
+ */
+/*
+ * integrate over the interval [a;b]. As we use it to integrate
+ * the possibly non-continuous first derivate of the curve from
+ * knot to knot, we must take care never to evaluate the exact
+ * right knot, as this would alread give the result for the next
+ * segment. But as we use gauss quadrature, even with b given as
+ * the right knot the value of bs(b) will never actually evaluated,
+ * so no precautions are necessary.
  */
 #define GL_N 4
 double
@@ -2157,23 +2225,63 @@ bs_adaptive_integration(bspline_t *bs, double left, double right,
 }
 
 /* pass derivate of bspline */
-void
+bspline_t *
 generate_arclen_points(bspline_t *d1)
 {
 	int i;
+	int j;
 	double sum = 0;
+	int num_intervals = 20;
+	int npoints = num_intervals * (d1->active_knots - 1) + 1;
+	double tmat[npoints][2];
+	int n = 1;
 
+	tmat[0][0] = 0;
+	tmat[0][1] = 0;
 	for (i = 0; i < d1->nknots - 1; ++i) {
 		if (d1->knot[i] == d1->knot[i + 1])
 			continue;
-		double al = bs_adaptive_integration(d1,
-			d1->knot[i], d1->knot[i+1] - 1e-10, 1e-10);
-		printf("calc arclen from %f-%f: %f\n", d1->knot[i],
-			d1->knot[i + 1], al);
+		double delta = d1->knot[i + 1] - d1->knot[i];
+		double al = 0;
+
+		for (j = 1; j <= num_intervals; ++j) {
+			double t = d1->knot[i] + j * delta / num_intervals;
+			al = bs_adaptive_integration(d1, d1->knot[i], t, 1e-10);
+			assert(n < npoints);
+			tmat[n][0] = al +  sum;
+			tmat[n][1] = t;
+			++n;
+		}
+		/* from last interval */
 		sum += al;
 	}
-	printf("total: %f\n", sum);
-	exit(1);
+printf("n %d npoints %d\n", n, npoints);
+	assert(n == npoints);
+	/* scale to 0-1 */
+	for (i = 0; i < npoints; ++i)
+		tmat[i][0] *= 1 / tmat[npoints - 1][0];
+FILE *ftmat = fopen("DemoCode/t.mat", "w");
+assert(ftmat);
+	for (i = 0; i < npoints; ++i)
+		fprintf(ftmat, "%.20e %.20e\n", tmat[i][0], tmat[i][1]);
+fclose(ftmat);
+
+	int degree = 3;
+	double ctrl_error = 0.0000001;
+	double min_angle = 0.0002;
+	int max_smooth = -1;
+	int n0_scan_for_discontinous_case = 100;
+	int gauss_newton_loop_time = 20;
+	int scan_knot = 1;
+	bspline_t *t_sp;
+	double max_error;
+
+	BSplineCurveFittingSerialBisection(*tmat, npoints, 2, degree, ctrl_error, min_angle,
+		max_smooth, n0_scan_for_discontinous_case, gauss_newton_loop_time, scan_knot,
+		&t_sp, &max_error, NULL);
+
+printf("max_error %f\n", max_error);
+	return t_sp;
 }
 
 #ifdef BATEST
@@ -2393,6 +2501,7 @@ print_bspline(bspline_t *b)
 		}
 	}
 	printf(" %d\n", m);
+	printf("active knots %d\n", b->active_knots);
 }
 
 static void
@@ -2729,8 +2838,10 @@ main(int argc, char **argv)
 	/*
 	 * calculate time-correction bspline
 	 */
-	generate_arclen_points(d1);
+	bspline_t *t_sp = generate_arclen_points(d1);
 
+	print_bspline(t_sp);
+	bspline_t *td_sp = derive_bspline(t_sp);
 
 	fp = fopen("vajcs.data", "w");
 	if (fp == NULL) {
@@ -2758,11 +2869,53 @@ main(int argc, char **argv)
 		for (k = 0; k < dim; ++k)
 			j += pj[k] * pj[k];
 		j = sqrt(j);
-		double c = abs(pv[0] * pa[1] - pv[1] * pa[0]) /
+		double c = fabs(pv[0] * pa[1] - pv[1] * pa[0]) /
 			pow(pv[0] * pv[0] + pv[1] * pv[1], 1.5);
-		double s = abs(pa[0] * pj[1] - pa[1] * pj[0]) /
+		double s = fabs(pa[0] * pj[1] - pa[1] * pj[0]) /
 			pow(pa[0] * pa[0] + pa[1] * pa[1], 1.5);
-		fprintf(fp, "%f %f %f %f %f %f\n", t, v, a, j, c, s);
+
+		/* remapped t to arc-length parameterization */
+		double re_t;
+		calc_bspline(t_sp, t, &re_t);
+		re_t = min(re_t, 1 - 1e-8);
+		re_t = max(re_t, 1e-8);
+
+		/*
+		 * repeat the same calculations above, based on re_t.
+		 * curvature and sharpness are expected to not change
+		 * chain rule: f(g(x))dx = f'(g(x)) * g'(x)
+		 */
+		double re_td;
+		calc_bspline(td_sp, t, &re_td);
+
+		double re_v = 0;
+		double re_a = 0;
+		double re_j = 0;
+		calc_bspline(d1, re_t, pv);
+		for (k = 0; k < dim; ++k) {
+			pv[k] *= re_td;
+			re_v += pv[k] * pv[k];
+		}
+		re_v = sqrt(re_v);
+		calc_bspline(d2, re_t, pa);
+		for (k = 0; k < dim; ++k) {
+			pa[k] *= re_td;
+			re_a += pa[k] * pa[k];
+		}
+		re_a = sqrt(re_a);
+		calc_bspline(d3, re_t, pj);
+		for (k = 0; k < dim; ++k) {
+			pj[k] *= re_td;
+			re_j += pj[k] * pj[k];
+		}
+		re_j = sqrt(re_j);
+		double re_c = fabs(pv[0] * pa[1] - pv[1] * pa[0]) /
+			pow(pv[0] * pv[0] + pv[1] * pv[1], 1.5);
+		double re_s = fabs(pa[0] * pj[1] - pa[1] * pj[0]) /
+			pow(pa[0] * pa[0] + pa[1] * pa[1], 1.5);
+		fprintf(fp, "%f %f %f %f %f %f : %f %f %f %f %f %f : %f\n",
+			t, v, a, j, c, s,
+			re_t, re_v, re_a, re_j, re_c, re_s, t - re_t);
 	}
 
 	free(bspline);
