@@ -6,6 +6,17 @@
 
 #include "conan.h"
 
+#undef SERIALBISECTION_DEBUG
+#undef SERIAL_BISECTION_RESULT_DEBUG
+#undef TWOPIECEOPTIMALKNOTSOLVER1_DEBUG
+#undef KNOTEVAL_DEBUG
+#undef GNKNOTSOLVER1_DEBUG
+#undef NEWNMATRIX_DEBUG
+#undef BSPLINEFITTING_DEBUG
+#undef BSPLINEFITTING_INOUT_DEBUG
+#undef BSPLINECURVEFITTING_DEBUG
+#undef CALC_BSPLINE_DEBUG
+
 typedef struct _bspline {
 	int	degree;
 
@@ -223,7 +234,6 @@ typedef struct _VectorUX {
 	double	ErrorMax;
 } VectorUX_t;
 
-#define SERIALBISECTION_DEBUG
 static void
 SerialBisection(double *DataIn, int rows, int cols, int Degree, double CtrlError,
 	VectorUX_t **VectorUX, int *VectorUXlen)
@@ -301,6 +311,9 @@ printf("inner loop: LeftIdx %d RightIdx %d StartIdx %d EndIdx %d\n", LeftIdx, Ri
 				for (i = 0; i < Order2; ++i)
 					Nmatrixsave[i] = 0;
 				ErrorMaxsave = 0;
+#if 1
+				LeftIdx = datasize - 1;	/* collect all remaining datapoints into last segment */
+#endif
 				break;
 			}
 
@@ -433,7 +446,6 @@ printf("saving Errorcal %f\n", Errorcal);
 		EndIdx = datasize - 1;
 	}
 
-#define SERIAL_BISECTION_RESULT_DEBUG
 #ifdef SERIAL_BISECTION_RESULT_DEBUG
 	printf("SerialBisection: %d rows\n", *VectorUXlen);
 	for (i = 0; i < *VectorUXlen; ++i) {
@@ -599,7 +611,6 @@ printf("id10: %d\n", id10);
  * Date: 19-July-2016
  * Author: Dvthan
  */
-#define TWOPIECEOPTIMALKNOTSOLVER1_DEBUG
 static void
 TwoPieceOptimalKnotSolver1(double *DataIn, int m, int n, int DataKnot, int Degree,
 	double MinAngle, int MaxSmooth, int N0ScanForDiscontinuosCase,
@@ -692,7 +703,7 @@ printf("1: %d 2: %d n %d m %d idx01 %d LeftSearch1 %d idx10 %d RightSearch1 %d i
 #endif
 		int r1 = max(idx01 - LeftSearch1, 0);
 		int r2 = min(idx10 + RightSearch1, idx11);
-#if 0
+#if 1
 		r1 = min(r1, m - 1);
 		r2 = max(r2, 0);
 #endif
@@ -714,7 +725,7 @@ printf("ExpandRange %d\n", ExpandRange);
 			int Multiple = ii;
 			int numKnotLocation = N0ScanForDiscontinuosCase + 1;
 			double KnotLocation[numKnotLocation];
-			for (i = 0; i <= numKnotLocation; ++i)
+			for (i = 0; i < numKnotLocation; ++i)
 				KnotLocation[i] = SearchRange[0] + i * (SearchRange[1] - SearchRange[0]) / (numKnotLocation - 1);
 #ifdef TWOPIECEOPTIMALKNOTSOLVER1_DEBUG
 print_matrix("KnotLocation", 1, numKnotLocation, KnotLocation, numKnotLocation);
@@ -914,7 +925,6 @@ printf("OptimalKnotOut %f MultipleOut %d\n", OptimalKnotOut, MultipleOut);
 		*pMultipleOut = MultipleOut;
 }
 
-#undef KNOTEVAL_DEBUG
 /* Find error of a knot */
 static void
 TwoPieceBspineKnotEval1(double *T, int datalength, double *Ymat, int datasize12,
@@ -1146,7 +1156,6 @@ printf("dot %f norml %f normr %f CosPhi %f\n", dot, norml, normr, CosPhi);
 	*pJoinAngle = JoinAngle;
 }
 
-#undef GNKNOTSOLVER1_DEBUG
 /*
  * Gauss Newton solver
  */
@@ -1565,7 +1574,6 @@ printf("OptimalKnotO %f ErrorO %f OptimalKnot %f Error %f Angle %f\n", OptimalKn
 		*pAngle = Angle;
 }
 
-#undef NEWNMATRIX_DEBUG
 /*
  * return result in Nmat of size (Degree+1)^2 * (nknots - 1)
  */
@@ -1716,8 +1724,6 @@ printf("id10: %d\n", id10);
 
 }
 
-#define BSPLINEFITTING_DEBUG
-#define BSPLINEFITTING_INOUT_DEBUG
 static void
 BsplineFitting(double *OptimalKnotOut,int *MultipleOut, int nKnotsOut, double *DataIn, int dm, int dn, int Degree,
 	bspline_t **pBSpline, double *pError, double *pFittedData)
@@ -1930,7 +1936,7 @@ print_matrix("R", N, dn - 1, *R, dn - 1);
 		if (RowError[i] > MaxError)
 			MaxError = RowError[i];
 #ifdef BSPLINEFITTING_DEBUG
-printf("MaxError %f\n", MaxError);
+printf("MaxError %.10f\n", MaxError);
 #endif
 	*pError = MaxError;
 
@@ -1994,7 +2000,6 @@ free_bspline(bspline_t *b)
 	free(b);
 }
 
-#undef BSPLINECURVEFITTING_DEBUG
 void
 BSplineCurveFittingSerialBisection(double *DataIn, int dm, int dn, int Degree, double CtrlError, double MinAngle,
 	int MaxSmooth, int N0ScanForDiscontinuosCase, int GaussNewtonLoopTime, int ScanKnot,
@@ -2099,7 +2104,6 @@ print_matrix("N", dim, k, *N, k);
 }
 
 #else
-#undef CALC_BSPLINE_DEBUG
 double
 _calc_bspline_N(double *knot, int i, int p, double t)
 {
@@ -2287,12 +2291,12 @@ generate_arclen_points(bspline_t *b)
 	int j;
 	int num_intervals = 50;
 	int degree = 3;
-	double ctrl_error = 0.000001;
-	double min_angle = 0.002;
+	double ctrl_error = 0.0000001;
+	double min_angle = 0.0002;
 	int max_smooth = 0;
 	int n0_scan_for_discontinous_case = 10;
 	int gauss_newton_loop_time = 10;
-	int scan_knot = 0;
+	int scan_knot = 1;
 	bspline_t *ret_b = NULL;
 	double max_error;
 
@@ -2330,11 +2334,9 @@ printf("n %d npoints %d\n", n, npoints);
 	 * calculate b-splines for each segment separately. We keep only the
 	 * knot position, to do a fitting over all knots at once at the end
 	 */
-	int nknots = 1;
-	double *knots = malloc(sizeof(*knots) * nknots);
-	int *multiple = malloc(sizeof(*multiple) * nknots);
-	knots[0] = 0;
-	multiple[0] = degree + 1;
+	int nknots = 0;
+	double *knots = NULL;
+	int *multiple = NULL;
 	for (i = 0; i < b->nactive_knots - 1; ++i) {
 		bspline_t *bs;
 
@@ -2371,14 +2373,13 @@ fclose(ftmat);
 print_matrix("knots", 1, nknots, knots, nknots);
 print_matrix_int("multiple", 1, nknots, multiple, nknots);
 	}
-	multiple[nknots - 1] = degree + 1;
+	--nknots; /* remove outer knot */
 print_matrix("knots", 1, nknots, knots, nknots);
 print_matrix_int("multiple", 1, nknots, multiple, nknots);
 
-	BsplineFitting(knots, multiple, nknots, *tmat, npoints, 2, degree,
+	BsplineFitting(knots, multiple, nknots - 1, *tmat, npoints, 2, degree,
 		&ret_b, &max_error, NULL);
 
-exit(1);
 	return ret_b;
 }
 
@@ -2830,7 +2831,7 @@ printf("[%d] chordlen %f\n", i, len);
 }
 
 void
-read_csv(const char *name, double **out, int *outlen)
+read_csv(const char *name, int dim, int do_scale, double **out, int *outlen)
 {
 	int ret;
 	int i;
@@ -2841,26 +2842,62 @@ read_csv(const char *name, double **out, int *outlen)
 	}
 	*out = NULL;
 	*outlen = 0;
+	assert(dim == 2 || dim == 3);
 	while (!feof(fp)) {
 		double t, x, y, l;
-		double p[3];
-		ret = fscanf(fp, "%lf %lf %lf %lf\n", &t, &x, &y, &l);
-		if (ret != 4) {
-			printf("failed to parse %s\n", name);
+		double p[dim];
+		if (dim == 2)
+			ret = fscanf(fp, "%lf %lf\n", &t, &x);
+		else
+			ret = fscanf(fp, "%lf %lf %lf %lf\n", &t, &x, &y, &l);
+		if (ret != ((dim == 2) ? 2 : 4)) {
+			printf("failed to parse %s, ret %d\n", name, ret);
 			exit(1);
 		}
 		p[0] = t;
 		p[1] = x;
-		p[2] = y;
-		preprocess_out(out, outlen, 3, p);
+		if (dim == 3)
+			p[2] = y;
+		preprocess_out(out, outlen, dim, p);
 	}
 	fclose(fp);
+	if (!do_scale)
+		return;
 	/* scale time */
 	double tm = (*out)[(*outlen - 1) * 3];
 	double scale = 1 / tm;
 	for (i = 1; i < *outlen; ++i) {
 		(*out)[i * 3] *=  scale;
 	}
+}
+
+void
+test_t6(void)
+{
+	double *in;
+	int inlen;
+
+	int degree = 3;
+	double ctrl_error = 0.000001;
+	double min_angle = 0.002;
+	int max_smooth = 0;
+	int n0_scan_for_discontinous_case = 10;
+	int gauss_newton_loop_time = 10;
+	int scan_knot = 0;
+	bspline_t *bs;
+	double max_error;
+
+	read_csv("t6.mat", 2, 0, &in, &inlen);
+
+	BSplineCurveFittingSerialBisection(in, inlen, 2,
+		degree, ctrl_error, min_angle,
+		max_smooth, n0_scan_for_discontinous_case,
+		gauss_newton_loop_time, scan_knot,
+		&bs, &max_error, NULL);
+
+	print_bspline(bs);
+
+	exit(1);
 }
 
 /*
@@ -2886,9 +2923,10 @@ main(int argc, char **argv)
 	int inlen = 94;
 
 	if (argc == 2)
-		read_csv(argv[1], &in, &inlen);
+		read_csv(argv[1], 3, 1, &in, &inlen);
 
 #if 0
+	test_t6();
 	test_nmatrix();
 #endif
 
@@ -2935,7 +2973,7 @@ main(int argc, char **argv)
 	print_bspline(d3);
 
 	bspline_t *t_sp = generate_arclen_points(d1);
-	bspline_t *td_sp = generate_arclen_points(t_sp);
+	bspline_t *td_sp = derive_bspline(t_sp);
 
 	/*
 	 * calculate time-correction bspline
